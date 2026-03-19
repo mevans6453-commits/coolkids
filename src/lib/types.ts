@@ -42,6 +42,7 @@ export type Event = {
   categories: string[];
   source_url: string | null;
   image_url: string | null;
+  pricing_notes: string | null;
   is_recurring: boolean;
   recurrence_rule: string | null;
   status: "published" | "draft" | "cancelled";
@@ -103,7 +104,8 @@ export type UserEventInteraction = {
   id: string;
   user_id: string;
   event_id: string;
-  interaction_type: "star" | "attending";
+  interaction_type: "star" | "attending" | "hidden" | "reported";
+  report_reason: string | null;
   created_at: string;
 };
 

@@ -1,0 +1,173 @@
+"use client";
+
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { createClient } from "@/lib/supabase/client";
+import type { Event } from "@/lib/types";
+import EventCard from "./event-card";
+import EventFilters, { type SortOption, type TimeFilter, type CostFilter } from "./event-filters";
+
+type Props = {
+  events: Event[];
+  interactionCounts: Record<string, { stars: number; attending: number }>;
+};
+
+export default function EventsClient({ events, interactionCounts }: Props) {
+  const supabase = createClient();
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const [sortBy, setSortBy] = useState<SortOption>("date");
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
+  const [costFilter, setCostFilter] = useState<CostFilter>("all");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+
+  // Load user's hidden events on mount
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase
+        .from("user_event_interactions")
+        .select("event_id")
+        .eq("user_id", user.id)
+        .eq("interaction_type", "hidden")
+        .then(({ data }) => {
+          if (data) setHiddenIds(new Set(data.map((d) => d.event_id)));
+        });
+    });
+  }, [supabase]);
+
+  const handleHide = useCallback((eventId: string) => {
+    setHiddenIds((prev) => new Set(prev).add(eventId));
+  }, []);
+
+  function toggleCategory(cat: string) {
+    setSelectedCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+    );
+  }
+
+  function clearFilters() {
+    setSortBy("date");
+    setTimeFilter("all");
+    setCostFilter("all");
+    setSelectedCategories([]);
+  }
+
+  // Filter + sort pipeline
+  const filtered = useMemo(() => {
+    let result = events.filter((e) => !hiddenIds.has(e.id));
+    const totalAfterHidden = result.length;
+
+    // Time filter
+    if (timeFilter !== "all") {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      if (timeFilter === "this-week") {
+        const endOfWeek = new Date(today);
+        endOfWeek.setDate(today.getDate() + (7 - today.getDay()));
+        result = result.filter((e) => {
+          const start = new Date(e.start_date + "T00:00:00");
+          const end = e.end_date ? new Date(e.end_date + "T00:00:00") : start;
+          return end >= today && start <= endOfWeek;
+        });
+      } else if (timeFilter === "this-weekend") {
+        const saturday = new Date(today);
+        saturday.setDate(today.getDate() + (6 - today.getDay()));
+        const sunday = new Date(saturday);
+        sunday.setDate(saturday.getDate() + 1);
+        result = result.filter((e) => {
+          const start = new Date(e.start_date + "T00:00:00");
+          const end = e.end_date ? new Date(e.end_date + "T00:00:00") : start;
+          return end >= saturday && start <= sunday;
+        });
+      } else if (timeFilter === "this-month") {
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        result = result.filter((e) => {
+          const start = new Date(e.start_date + "T00:00:00");
+          const end = e.end_date ? new Date(e.end_date + "T00:00:00") : start;
+          return end >= today && start <= endOfMonth;
+        });
+      } else if (timeFilter === "next-month") {
+        const startOfNext = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const endOfNext = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+        result = result.filter((e) => {
+          const start = new Date(e.start_date + "T00:00:00");
+          const end = e.end_date ? new Date(e.end_date + "T00:00:00") : start;
+          return end >= startOfNext && start <= endOfNext;
+        });
+      }
+    }
+
+    // Cost filter
+    if (costFilter === "free") {
+      result = result.filter((e) => e.is_free);
+    } else if (costFilter === "under10") {
+      result = result.filter((e) => e.is_free || (e.cost_max !== null && e.cost_max < 10));
+    } else if (costFilter === "under25") {
+      result = result.filter((e) => e.is_free || (e.cost_max !== null && e.cost_max < 25));
+    }
+
+    // Category filter
+    if (selectedCategories.length > 0) {
+      result = result.filter((e) =>
+        e.categories?.some((c) => selectedCategories.includes(c))
+      );
+    }
+
+    // Sort
+    result = [...result].sort((a, b) => {
+      if (sortBy === "date") {
+        return a.start_date.localeCompare(b.start_date);
+      } else if (sortBy === "venue") {
+        return (a.venue?.name ?? "").localeCompare(b.venue?.name ?? "");
+      } else if (sortBy === "trending") {
+        const aStars = interactionCounts[a.id]?.stars ?? 0;
+        const bStars = interactionCounts[b.id]?.stars ?? 0;
+        return bStars - aStars;
+      } else if (sortBy === "recent") {
+        return b.created_at.localeCompare(a.created_at);
+      }
+      return 0;
+    });
+
+    return { events: result, totalAfterHidden };
+  }, [events, hiddenIds, timeFilter, costFilter, selectedCategories, sortBy, interactionCounts]);
+
+  return (
+    <>
+      <EventFilters
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+        timeFilter={timeFilter}
+        onTimeFilterChange={setTimeFilter}
+        costFilter={costFilter}
+        onCostFilterChange={setCostFilter}
+        selectedCategories={selectedCategories}
+        onCategoryToggle={toggleCategory}
+        onClearFilters={clearFilters}
+        resultCount={filtered.events.length}
+        totalCount={filtered.totalAfterHidden}
+      />
+
+      {filtered.events.length === 0 ? (
+        <div className="mt-10 rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
+          <p className="text-gray-500">No events match your filters.</p>
+          <button onClick={clearFilters} className="mt-2 text-sm text-[var(--primary)] hover:underline">
+            Clear filters
+          </button>
+        </div>
+      ) : (
+        <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.events.map((event) => (
+            <EventCard
+              key={event.id}
+              event={event}
+              starCount={interactionCounts[event.id]?.stars ?? 0}
+              attendingCount={interactionCounts[event.id]?.attending ?? 0}
+              onHide={handleHide}
+            />
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
