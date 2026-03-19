@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Event } from "@/lib/types";
 import EventCard from "./event-card";
-import EventFilters, { type SortOption, type TimeFilter, type CostFilter } from "./event-filters";
+import EventFilters, { type SortOption, type TimeFilter, type CostFilter, type ViewMode } from "./event-filters";
 
 type Props = {
   events: Event[];
@@ -18,6 +18,7 @@ export default function EventsClient({ events, interactionCounts }: Props) {
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
   const [costFilter, setCostFilter] = useState<CostFilter>("all");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
 
   // Load user's hidden events on mount
   useEffect(() => {
@@ -146,6 +147,8 @@ export default function EventsClient({ events, interactionCounts }: Props) {
         onClearFilters={clearFilters}
         resultCount={filtered.events.length}
         totalCount={filtered.totalAfterHidden}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
       />
 
       {filtered.events.length === 0 ? (
@@ -156,7 +159,7 @@ export default function EventsClient({ events, interactionCounts }: Props) {
           </button>
         </div>
       ) : (
-        <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className={viewMode === "grid" ? "mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3" : "mt-6 space-y-2"}>
           {filtered.events.map((event) => (
             <EventCard
               key={event.id}
@@ -164,6 +167,7 @@ export default function EventsClient({ events, interactionCounts }: Props) {
               starCount={interactionCounts[event.id]?.stars ?? 0}
               attendingCount={interactionCounts[event.id]?.attending ?? 0}
               onHide={handleHide}
+              view={viewMode}
             />
           ))}
         </div>
