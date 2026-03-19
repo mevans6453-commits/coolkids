@@ -164,9 +164,29 @@ export default function EventsClient({ events, interactionCounts }: Props) {
           </button>
         </div>
       ) : viewMode === "calendar" ? (
-        <EventCalendar events={filtered.events} interactionCounts={interactionCounts} />
+        <>
+          {/* Full calendar on desktop, list fallback on mobile */}
+          <div className="hidden sm:block">
+            <EventCalendar events={filtered.events} interactionCounts={interactionCounts} />
+          </div>
+          <div className="sm:hidden mt-4">
+            <p className="mb-3 text-xs text-gray-400 text-center">Calendar view is available on larger screens</p>
+            <div className="space-y-2">
+              {filtered.events.map((event) => (
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  starCount={interactionCounts[event.id]?.stars ?? 0}
+                  attendingCount={interactionCounts[event.id]?.attending ?? 0}
+                  onHide={handleHide}
+                  view="list"
+                />
+              ))}
+            </div>
+          </div>
+        </>
       ) : (
-        <div className={viewMode === "grid" ? "mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3" : "mt-6 space-y-2"}>
+        <div className={viewMode === "grid" ? "mt-6 grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "mt-6 space-y-2"}>
           {filtered.events.map((event) => (
             <EventCard
               key={event.id}

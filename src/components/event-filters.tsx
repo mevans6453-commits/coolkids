@@ -43,7 +43,7 @@ export default function EventFilters(props: Props) {
   const hasFilters = timeFilter !== "all" || costFilter !== "all" || selectedCategories.length > 0 || sortBy !== "date";
 
   return (
-    <div className="mt-6 flex flex-wrap items-center gap-2">
+    <div className="mt-6 flex flex-wrap items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:overflow-visible sm:pb-0">
       {/* Dropdowns */}
       <Dropdown
         label="Sort"

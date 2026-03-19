@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import AuthButton from "@/components/auth-button";
+import MobileNav from "@/components/mobile-nav";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -22,7 +23,8 @@ export default function RootLayout({
             <a href="/" className="text-2xl font-bold text-[var(--primary)]">
               CoolKids
             </a>
-            <nav className="flex items-center gap-6 text-sm font-medium">
+            {/* Desktop nav */}
+            <nav className="hidden items-center gap-6 text-sm font-medium sm:flex">
               <a href="/events" className="text-gray-600 hover:text-[var(--primary)]">
                 Events
               </a>
@@ -31,6 +33,11 @@ export default function RootLayout({
               </a>
               <AuthButton />
             </nav>
+            {/* Mobile nav */}
+            <div className="flex items-center gap-2 sm:hidden">
+              <AuthButton />
+              <MobileNav />
+            </div>
           </div>
         </header>
 

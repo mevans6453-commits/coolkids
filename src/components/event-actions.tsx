@@ -69,18 +69,18 @@ export default function EventActions({ event, onHide }: Props) {
       <button
         onClick={handleCalendar}
         title="Add to Google Calendar"
-        className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+        className="rounded p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 min-h-[44px] min-w-[44px] flex items-center justify-center sm:p-1 sm:min-h-0 sm:min-w-0"
       >
-        <CalendarPlus className="h-4 w-4" />
+        <CalendarPlus className="h-5 w-5 sm:h-4 sm:w-4" />
       </button>
 
       <div className="relative" ref={menuRef}>
         <button
           onClick={() => setMenuOpen(!menuOpen)}
           title="More options"
-          className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+          className="rounded p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 min-h-[44px] min-w-[44px] flex items-center justify-center sm:p-1 sm:min-h-0 sm:min-w-0"
         >
-          <Flag className={`h-4 w-4 ${reported ? "text-red-400" : ""}`} />
+          <Flag className={`h-5 w-5 sm:h-4 sm:w-4 ${reported ? "text-red-400" : ""}`} />
         </button>
 
         {menuOpen && (
