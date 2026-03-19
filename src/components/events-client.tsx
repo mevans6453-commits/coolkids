@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { Event } from "@/lib/types";
+import type { Event, AgeFilter } from "@/lib/types";
+import { AGE_FILTER_RANGES } from "@/lib/types";
 import EventCard from "./event-card";
 import EventCalendar from "./event-calendar";
 import EventFilters, { type SortOption, type TimeFilter, type CostFilter, type ViewMode } from "./event-filters";
@@ -20,6 +21,8 @@ export default function EventsClient({ events, interactionCounts }: Props) {
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
   const [costFilter, setCostFilter] = useState<CostFilter>("all");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [ageFilter, setAgeFilter] = useState<AgeFilter>("all");
+  const [showHours, setShowHours] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
 
   // Load user's hidden events on mount
@@ -52,6 +55,8 @@ export default function EventsClient({ events, interactionCounts }: Props) {
     setTimeFilter("all");
     setCostFilter("all");
     setSelectedCategories([]);
+    setAgeFilter("all");
+    setShowHours(false);
   }
 
   // Filter + sort pipeline
@@ -116,6 +121,24 @@ export default function EventsClient({ events, interactionCounts }: Props) {
       );
     }
 
+    // Event type filter — hide 'hours' by default unless toggle is on
+    if (!showHours) {
+      result = result.filter((e) => e.event_type !== "hours");
+    }
+
+    // Age filter — show events that OVERLAP the selected range, plus null ages (for everyone)
+    if (ageFilter !== "all") {
+      const range = AGE_FILTER_RANGES[ageFilter];
+      if (range) {
+        result = result.filter((e) => {
+          if (e.age_range_min === null && e.age_range_max === null) return true;
+          const eMin = e.age_range_min ?? 0;
+          const eMax = e.age_range_max ?? 99;
+          return eMin <= range.max && eMax >= range.min;
+        });
+      }
+    }
+
     // Sort
     result = [...result].sort((a, b) => {
       if (sortBy === "date") {
@@ -136,7 +159,7 @@ export default function EventsClient({ events, interactionCounts }: Props) {
     result = mergeConsecutiveEvents(result);
 
     return { events: result, totalAfterHidden };
-  }, [events, hiddenIds, timeFilter, costFilter, selectedCategories, sortBy, interactionCounts]);
+  }, [events, hiddenIds, timeFilter, costFilter, selectedCategories, ageFilter, showHours, sortBy, interactionCounts]);
 
   return (
     <>
@@ -149,6 +172,10 @@ export default function EventsClient({ events, interactionCounts }: Props) {
         onCostFilterChange={setCostFilter}
         selectedCategories={selectedCategories}
         onCategoryToggle={toggleCategory}
+        ageFilter={ageFilter}
+        onAgeFilterChange={setAgeFilter}
+        showHours={showHours}
+        onShowHoursChange={setShowHours}
         onClearFilters={clearFilters}
         resultCount={filtered.events.length}
         totalCount={filtered.totalAfterHidden}

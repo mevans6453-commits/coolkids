@@ -21,6 +21,7 @@ export type ScrapedEvent = {
   pricing_notes: string | null;
   age_range_min: number | null;
   age_range_max: number | null;
+  event_type: "event" | "hours";
   categories: string[];
   source_url: string | null;
   image_url: string | null;

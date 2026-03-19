@@ -56,6 +56,7 @@ export type Event = {
   source_url: string | null;
   image_url: string | null;
   pricing_notes: string | null;
+  event_type: "event" | "hours";
   is_recurring: boolean;
   recurrence_rule: string | null;
   status: "published" | "draft" | "cancelled";
@@ -63,6 +64,16 @@ export type Event = {
   updated_at: string;
   // Joined data (when we fetch events with venue info)
   venue?: Venue;
+};
+
+export type AgeFilter = "all" | "toddler" | "preschool" | "elementary" | "tween-teen";
+
+export const AGE_FILTER_RANGES: Record<AgeFilter, { min: number; max: number } | null> = {
+  all: null,
+  toddler: { min: 0, max: 2 },
+  preschool: { min: 3, max: 5 },
+  elementary: { min: 6, max: 10 },
+  "tween-teen": { min: 11, max: 99 },
 };
 
 export type Subscriber = {

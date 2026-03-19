@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { ChevronDown, X, LayoutGrid, List, CalendarDays } from "lucide-react";
-import { CATEGORIES } from "@/lib/types";
+import { CATEGORIES, type AgeFilter } from "@/lib/types";
 
 export type SortOption = "date" | "venue" | "trending" | "recent";
 export type TimeFilter = "all" | "this-week" | "this-weekend" | "this-month" | "next-month";
@@ -18,6 +18,10 @@ type Props = {
   onCostFilterChange: (f: CostFilter) => void;
   selectedCategories: string[];
   onCategoryToggle: (cat: string) => void;
+  ageFilter: AgeFilter;
+  onAgeFilterChange: (f: AgeFilter) => void;
+  showHours: boolean;
+  onShowHoursChange: (show: boolean) => void;
   onClearFilters: () => void;
   resultCount: number;
   totalCount: number;
@@ -28,19 +32,22 @@ type Props = {
 const SORT_OPTIONS: [SortOption, string][] = [["date", "Date"], ["venue", "Venue"], ["trending", "Trending"], ["recent", "Recently Added"]];
 const TIME_OPTIONS: [TimeFilter, string][] = [["all", "All"], ["this-week", "This Week"], ["this-weekend", "This Weekend"], ["this-month", "This Month"], ["next-month", "Next Month"]];
 const COST_OPTIONS: [CostFilter, string][] = [["all", "All"], ["free", "Free"], ["under10", "Under $10"], ["under25", "Under $25"]];
+const AGE_OPTIONS: [AgeFilter, string][] = [["all", "All Ages"], ["toddler", "Toddler (0-2)"], ["preschool", "Preschool (3-5)"], ["elementary", "Elementary (6-10)"], ["tween-teen", "Tween/Teen (11+)"]];
 
 function sortLabel(v: SortOption) { return SORT_OPTIONS.find(([k]) => k === v)?.[1] ?? "Date"; }
 function timeLabel(v: TimeFilter) { return TIME_OPTIONS.find(([k]) => k === v)?.[1] ?? "All"; }
 function costLabel(v: CostFilter) { return COST_OPTIONS.find(([k]) => k === v)?.[1] ?? "All"; }
+function ageLabel(v: AgeFilter) { return AGE_OPTIONS.find(([k]) => k === v)?.[1] ?? "All Ages"; }
 
 export default function EventFilters(props: Props) {
   const {
     sortBy, onSortChange, timeFilter, onTimeFilterChange,
     costFilter, onCostFilterChange, selectedCategories, onCategoryToggle,
+    ageFilter, onAgeFilterChange, showHours, onShowHoursChange,
     onClearFilters, resultCount, totalCount, viewMode, onViewModeChange,
   } = props;
 
-  const hasFilters = timeFilter !== "all" || costFilter !== "all" || selectedCategories.length > 0 || sortBy !== "date";
+  const hasFilters = timeFilter !== "all" || costFilter !== "all" || selectedCategories.length > 0 || sortBy !== "date" || ageFilter !== "all" || showHours;
 
   return (
     <div className="mt-6 flex flex-wrap items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:overflow-visible sm:pb-0">
@@ -102,6 +109,29 @@ export default function EventFilters(props: Props) {
           </label>
         ))}
       </Dropdown>
+
+      <Dropdown
+        label="Age"
+        value={ageFilter !== "all" ? ageLabel(ageFilter) : undefined}
+        onClear={ageFilter !== "all" ? () => onAgeFilterChange("all") : undefined}
+      >
+        {AGE_OPTIONS.map(([val, label]) => (
+          <button key={val} onClick={() => onAgeFilterChange(val)}
+            className={`block w-full px-4 py-2 text-left text-sm ${ageFilter === val ? "bg-blue-50 font-medium text-[var(--primary)]" : "text-gray-700 hover:bg-gray-50"}`}>
+            {label}
+          </button>
+        ))}
+      </Dropdown>
+
+      <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50">
+        <input
+          type="checkbox"
+          checked={showHours}
+          onChange={(e) => onShowHoursChange(e.target.checked)}
+          className="h-3.5 w-3.5 rounded border-gray-300 text-[var(--primary)]"
+        />
+        Hours
+      </label>
 
       {hasFilters && (
         <button onClick={onClearFilters} className="text-xs text-[var(--primary)] hover:underline">

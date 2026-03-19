@@ -5,6 +5,7 @@
 
 import type { ScrapedEvent } from "../base-scraper";
 import type { ScrapeStrategy, StrategyResult } from "./types";
+import { extractAge, classifyEventType } from "../parse-utils";
 
 const USER_AGENT = "CoolKidsBot/1.0 (family events aggregator)";
 
@@ -90,8 +91,8 @@ function parseIcal(text: string, defaultCategories: string[]): ScrapedEvent[] {
       cost_max: null,
       is_free: false,
       pricing_notes: null,
-      age_range_min: null,
-      age_range_max: null,
+      ...extractAge(`${name} ${description || ""}`),
+      event_type: classifyEventType(name, description, startDate!, endDate !== startDate ? endDate : null),
       categories: [...defaultCategories],
       source_url: url || null,
       image_url: null,

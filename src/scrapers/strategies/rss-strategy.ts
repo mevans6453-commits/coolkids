@@ -5,7 +5,7 @@
 
 import type { ScrapedEvent } from "../base-scraper";
 import type { ScrapeStrategy, StrategyResult } from "./types";
-import { extractDate, extractTime, extractCost, stripHtml } from "../parse-utils";
+import { extractDate, extractTime, extractCost, extractAge, classifyEventType, stripHtml } from "../parse-utils";
 
 const USER_AGENT = "CoolKidsBot/1.0 (family events aggregator)";
 
@@ -102,8 +102,8 @@ function parseRssItem(item: string, defaultCategories: string[], currentYear: nu
     cost_max: costInfo?.cost_max ?? null,
     is_free: costInfo?.is_free || false,
     pricing_notes: costInfo?.pricing_notes ?? null,
-    age_range_min: null,
-    age_range_max: null,
+    ...extractAge(`${title} ${plainText}`),
+    event_type: classifyEventType(stripHtml(title), plainText.slice(0, 300), dateInfo.start_date, dateInfo.end_date),
     categories: [...defaultCategories],
     source_url: link || null,
     image_url: null,
@@ -138,8 +138,8 @@ function parseAtomEntry(entry: string, defaultCategories: string[], currentYear:
     cost_max: costInfo?.cost_max ?? null,
     is_free: costInfo?.is_free || false,
     pricing_notes: costInfo?.pricing_notes ?? null,
-    age_range_min: null,
-    age_range_max: null,
+    ...extractAge(`${title} ${plainText}`),
+    event_type: classifyEventType(stripHtml(title), plainText.slice(0, 300), dateInfo.start_date, dateInfo.end_date),
     categories: [...defaultCategories],
     source_url: link || null,
     image_url: null,

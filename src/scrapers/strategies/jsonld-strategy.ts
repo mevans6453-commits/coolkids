@@ -5,6 +5,7 @@
 
 import type { ScrapedEvent } from "../base-scraper";
 import type { ScrapeStrategy, StrategyResult } from "./types";
+import { extractAge, classifyEventType } from "../parse-utils";
 
 const USER_AGENT = "CoolKidsBot/1.0 (family events aggregator)";
 
@@ -168,8 +169,8 @@ function mapSchemaOrgEvent(
     cost_max: costMax,
     is_free: isFree,
     pricing_notes: null,
-    age_range_min: null,
-    age_range_max: null,
+    ...extractAge(`${name} ${description || ""}`),
+    event_type: classifyEventType(name, description, startDate, endDate ?? null),
     categories: [...defaultCategories],
     source_url: sourceUrl,
     image_url: imageUrl,

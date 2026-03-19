@@ -228,6 +228,106 @@ export function stripHtml(html: string): string {
 }
 
 // -----------------------------------------------
+// Event type classification
+// -----------------------------------------------
+
+/** Classify an event as 'event' (real event) or 'hours' (venue availability/seasons) */
+export function classifyEventType(
+  name: string,
+  description: string | null,
+  startDate: string,
+  endDate: string | null,
+  isRecurring?: boolean
+): "event" | "hours" {
+  const text = `${name} ${description || ""}`.toLowerCase();
+  const titleLower = name.toLowerCase();
+
+  const eventPatterns = /\b(festival|workshop|camp|class|show|concert|special|holiday|celebration|fundraiser|tournament|storytime|story\s*time|craft|demo|demonstration|lecture|performance|exhibit\s*opening|parade|egg\s*hunt|trick.or.treat|field\s*trip|gala|auction|run|race|hike)\b/i;
+  const hoursPatterns = /\b(open|hours|admission|general\s*admission|daily|regular\s*hours|season$)\b/i;
+
+  // Event keywords always win
+  if (eventPatterns.test(text)) return "event";
+
+  // Hours keywords in title
+  if (hoursPatterns.test(titleLower)) return "hours";
+
+  // Spans 28+ days with no event keywords → likely hours/seasonal
+  if (startDate && endDate) {
+    const start = new Date(startDate + "T00:00:00");
+    const end = new Date(endDate + "T00:00:00");
+    const daySpan = (end.getTime() - start.getTime()) / 86400000;
+    if (daySpan >= 28) return "hours";
+  }
+
+  // Weekly recurring with no end date → likely hours
+  if (isRecurring && !endDate) return "hours";
+
+  return "event";
+}
+
+// -----------------------------------------------
+// Age range extraction
+// -----------------------------------------------
+
+/** Extract age range from text. Returns null fields if can't determine — don't guess. */
+export function extractAge(
+  text: string
+): { age_range_min: number | null; age_range_max: number | null } {
+  const lower = text.toLowerCase();
+
+  // "all ages"
+  if (/\ball\s*ages\b/.test(lower)) {
+    return { age_range_min: 0, age_range_max: 99 };
+  }
+
+  // Named age groups
+  const namedGroups: [RegExp, number, number][] = [
+    [/\b(infant|infants|baby|babies)\b/, 0, 1],
+    [/\b(toddler|toddlers)\b/, 0, 2],
+    [/\b(preschool|pre-school|pre\s*k|prek)\b/, 3, 5],
+    [/\b(kindergarten|kinder)\b/, 5, 6],
+    [/\b(elementary)\b/, 6, 10],
+    [/\b(tween|tweens)\b/, 9, 12],
+    [/\b(teen|teens|teenager|teenagers)\b/, 13, 17],
+    [/\b(middle\s*school)\b/, 11, 14],
+    [/\b(high\s*school)\b/, 14, 18],
+  ];
+
+  for (const [pattern, min, max] of namedGroups) {
+    if (pattern.test(lower)) {
+      return { age_range_min: min, age_range_max: max };
+    }
+  }
+
+  // "ages 3-5", "age 3 to 5", "ages 3 – 5"
+  const rangeMatch = lower.match(/ages?\s*:?\s*(\d{1,2})\s*[-–—to]+\s*(\d{1,2})/);
+  if (rangeMatch) {
+    return { age_range_min: parseInt(rangeMatch[1]), age_range_max: parseInt(rangeMatch[2]) };
+  }
+
+  // "must be 8+", "ages 5+", "age 3 and up"
+  const minOnlyMatch = lower.match(/(?:ages?\s*:?\s*|must\s+be\s+)(\d{1,2})\s*(?:\+|and\s+(?:up|older|above))/);
+  if (minOnlyMatch) {
+    return { age_range_min: parseInt(minOnlyMatch[1]), age_range_max: null };
+  }
+
+  // "under 3", "5 and under"
+  const maxOnlyMatch = lower.match(/(?:under\s+|(\d{1,2})\s+and\s+(?:under|younger))(\d{1,2})?/);
+  if (maxOnlyMatch) {
+    const val = parseInt(maxOnlyMatch[2] || maxOnlyMatch[1]);
+    if (!isNaN(val)) return { age_range_min: 0, age_range_max: val };
+  }
+
+  // "grades K-5" → approximate as age 5+grade
+  const gradeMatch = lower.match(/grades?\s*(\d{1,2})\s*[-–—to]+\s*(\d{1,2})/);
+  if (gradeMatch) {
+    return { age_range_min: parseInt(gradeMatch[1]) + 5, age_range_max: parseInt(gradeMatch[2]) + 5 };
+  }
+
+  return { age_range_min: null, age_range_max: null };
+}
+
+// -----------------------------------------------
 // Markdown event parser (used by Apify strategy)
 // -----------------------------------------------
 
@@ -263,9 +363,13 @@ export function parseEventsFromMarkdown(
                      section.match(/\[(?:More Info|Details|Register)\]\(([^)]+)\)/i);
     const imageMatch = section.match(/!\[[^\]]*\]\(([^)]+)\)/);
 
+    const desc = extractDescription(section);
+    const ageInfo = extractAge(`${eventName} ${desc || ""} ${section}`);
+    const eventType = classifyEventType(eventName, desc, dateInfo.start_date, dateInfo.end_date);
+
     events.push({
       name: eventName,
-      description: extractDescription(section),
+      description: desc,
       start_date: dateInfo.start_date,
       end_date: dateInfo.end_date,
       start_time: timeInfo?.start_time || null,
@@ -275,8 +379,9 @@ export function parseEventsFromMarkdown(
       cost_max: costInfo?.cost_max ?? null,
       is_free: costInfo?.is_free || false,
       pricing_notes: costInfo?.pricing_notes ?? null,
-      age_range_min: null,
-      age_range_max: null,
+      age_range_min: ageInfo.age_range_min,
+      age_range_max: ageInfo.age_range_max,
+      event_type: eventType,
       categories: [...defaultCategories],
       source_url: urlMatch ? urlMatch[1] : null,
       image_url: imageMatch ? imageMatch[1] : null,
