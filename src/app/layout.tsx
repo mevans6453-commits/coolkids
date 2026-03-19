@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import AuthButton from "@/components/auth-button";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -21,16 +22,14 @@ export default function RootLayout({
             <a href="/" className="text-2xl font-bold text-[var(--primary)]">
               CoolKids
             </a>
-            <nav className="flex gap-6 text-sm font-medium">
+            <nav className="flex items-center gap-6 text-sm font-medium">
               <a href="/events" className="text-gray-600 hover:text-[var(--primary)]">
                 Events
               </a>
               <a href="/venues" className="text-gray-600 hover:text-[var(--primary)]">
                 Venues
               </a>
-              <a href="/subscribe" className="rounded-full bg-[var(--primary)] px-4 py-2 text-white hover:bg-[var(--primary-light)]">
-                Subscribe
-              </a>
+              <AuthButton />
             </nav>
           </div>
         </header>
