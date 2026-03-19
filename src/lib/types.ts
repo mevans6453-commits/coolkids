@@ -100,6 +100,13 @@ export const INTEREST_CATEGORIES = [
 
 export type InterestCategory = (typeof INTEREST_CATEGORIES)[number];
 
+export type DadJoke = {
+  id: string;
+  setup: string;
+  punchline: string;
+  created_at: string;
+};
+
 export type UserEventInteraction = {
   id: string;
   user_id: string;

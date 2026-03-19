@@ -1,7 +1,22 @@
 import { MapPin, Calendar, Mail, Star } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import type { DadJoke as DadJokeType } from "@/lib/types";
+import DadJoke from "@/components/dad-joke";
+
+export const revalidate = 3600; // Re-fetch joke at most every hour
 
 // Homepage — introduces CoolKids and highlights key features
-export default function HomePage() {
+export default async function HomePage() {
+  // Fetch all dad jokes and pick today's
+  const { data: jokes } = await supabase.from("dad_jokes").select("*");
+  const now = new Date();
+  const dayOfYear = Math.floor(
+    (now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400000
+  );
+  const todaysJoke =
+    jokes && jokes.length > 0
+      ? (jokes[dayOfYear % jokes.length] as DadJokeType)
+      : null;
   return (
     <div>
       {/* Hero section */}
@@ -31,6 +46,11 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Dad Joke of the Day */}
+      {todaysJoke && (
+        <DadJoke setup={todaysJoke.setup} punchline={todaysJoke.punchline} />
+      )}
 
       {/* Features section */}
       <section className="mx-auto max-w-6xl px-4 py-16">
