@@ -37,7 +37,7 @@ create table if not exists venues (
 -- -----------------------------------------------
 create table if not exists events (
   id uuid default uuid_generate_v4() primary key,
-  venue_id uuid references venues(id) on delete cascade,
+  venue_id uuid references venues(id) on delete cascade not null,
   name text not null,
   description text,
   start_date date not null,
