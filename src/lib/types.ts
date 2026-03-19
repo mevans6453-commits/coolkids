@@ -1,0 +1,95 @@
+// ===========================================
+// CoolKids - Database Types
+// These match the Supabase table schemas
+// ===========================================
+
+export type Venue = {
+  id: string;
+  name: string;
+  address: string | null;
+  city: string;
+  county: string;
+  state: string;
+  zip: string | null;
+  website: string | null;
+  scrape_url: string | null;
+  scrape_method: "firecrawl" | "apify" | "manual" | null;
+  categories: string[];
+  phone: string | null;
+  description: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Event = {
+  id: string;
+  venue_id: string;
+  name: string;
+  description: string | null;
+  start_date: string;
+  end_date: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  cost: string | null;
+  cost_min: number | null;
+  cost_max: number | null;
+  is_free: boolean;
+  age_range_min: number | null;
+  age_range_max: number | null;
+  categories: string[];
+  source_url: string | null;
+  image_url: string | null;
+  is_recurring: boolean;
+  recurrence_rule: string | null;
+  status: "published" | "draft" | "cancelled";
+  created_at: string;
+  updated_at: string;
+  // Joined data (when we fetch events with venue info)
+  venue?: Venue;
+};
+
+export type Subscriber = {
+  id: string;
+  email: string;
+  name: string | null;
+  zip: string | null;
+  max_distance_miles: number | null;
+  kids_ages: number[];
+  interest_categories: string[];
+  is_active: boolean;
+  created_at: string;
+  unsubscribed_at: string | null;
+};
+
+export type VenueSuggestion = {
+  id: string;
+  suggested_by_email: string;
+  venue_name: string;
+  venue_url: string | null;
+  notes: string | null;
+  status: "pending" | "approved" | "rejected";
+  created_at: string;
+};
+
+// Category options for venues and events
+export const CATEGORIES = [
+  "farm",
+  "museum",
+  "park",
+  "zoo",
+  "garden",
+  "outdoor",
+  "arts",
+  "sports",
+  "seasonal",
+  "market",
+  "festival",
+  "education",
+  "aquatic",
+  "free",
+] as const;
+
+export type Category = (typeof CATEGORIES)[number];
