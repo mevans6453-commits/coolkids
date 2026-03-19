@@ -30,7 +30,7 @@ CoolKids is a local family events aggregator and community platform for parents 
 - `events` — 45 events scraped from venue websites
 - `profiles` — User profiles (ZIP, kids ages, interests, distance)
 - `user_event_interactions` — Stars, attending, hidden, reported records
-- `venue_suggestions` — User-submitted venue suggestions (type defined in code, but table may not exist in Supabase yet — VERIFY before building UI)
+- `venue_suggestions` — User-submitted venue suggestions (table verified in Supabase)
 - `dad_jokes` — 30 dad jokes for daily rotation on homepage
 
 ## What's Been Built (Completed Phases)
@@ -71,7 +71,7 @@ CoolKids is a local family events aggregator and community platform for parents 
 - Dad Jokes feature — Code fully built (table schema + component + 30 jokes), but migration has NOT been run in Supabase yet. Run the migration to activate.
 
 ## What's NOT Built Yet
-- Suggest a Venue form (venue_suggestions table UNVERIFIED — check Supabase before building)
+- Suggest a Venue form (venue_suggestions table verified — ready to build UI)
 - Calendar view (toggle between list and calendar)
 - Scraper configs for 8 of 12 venues (only Tellus, Booth, Gibbs, Cagle's have configs)
 - Load full 97-venue master list
@@ -83,6 +83,7 @@ CoolKids is a local family events aggregator and community platform for parents 
 - PWA (Progressive Web App)
 - Deploy custom domain
 - Expand beyond kids to adult event channels
+- Private Events & Party Invites (see growth engine section below)
 
 ## Venues Currently in Database (12)
 1. Tellus Science Museum (12 events)
@@ -132,3 +133,41 @@ CoolKids is a local family events aggregator and community platform for parents 
 - Mobile-first responsive
 - Warm, fun personality (dad jokes, friendly tone)
 - "Built with ❤️ for local families" branding
+
+## Planned Feature: Private Events & Party Invites (Growth Engine)
+
+This is the viral growth loop. A parent creates a private event (birthday party, playdate, etc.) and CoolKids generates a beautiful shareable invite image + link. When other parents tap the link, they land on CoolKids, sign up to RSVP, and discover all the public events too. One birthday party = 15+ new users.
+
+### Flow:
+1. Parent fills out form: kid's name, age, theme, date, time, location, details
+2. AI writes invite copy (e.g. "Tommy is turning 5! Join us for a SUPER celebration at Riverside Park, Saturday March 28th at 2pm. Capes encouraged!")
+3. System generates a branded share image using theme colors/patterns (NOT licensed characters)
+4. Parent gets a unique invite link (coolkidsga.com/event/abc123) + the share image
+5. Parent texts image to other parents
+6. Other parents tap link → land on CoolKids → sign up to RSVP → now registered users
+7. New users discover all public events → viral loop complete
+
+### Theme Library (color palettes + design elements, NO licensed characters):
+- **Superhero:** red/blue, starburst, comic font, cape silhouette
+- **Princess:** pink/purple/gold, sparkles, crown shapes, elegant script
+- **Dinosaur:** green/orange, jungle leaves, dino silhouettes, bold font
+- **Under the Sea:** blue/teal/coral, bubbles, wave patterns, fish shapes
+- **Space:** dark blue/purple, stars, rocket silhouettes, futuristic font
+- **Safari:** tan/green/brown, animal prints, leaf patterns
+- **Sports:** team colors, ball shapes, bold block font
+- **Unicorn:** pastel rainbow, stars, cloud shapes, whimsical font
+- **Construction:** yellow/orange/black, stripes, hard hat shapes
+- **Farm:** red/green/brown, barn shapes, animal silhouettes
+- **Gaming:** neon green/purple/black, pixel font, controller shapes
+- **Art Party:** rainbow splatter, paint brush shapes, playful font
+
+### Why no licensed characters:
+AI cannot generate Superman, Bluey, Paw Patrol, etc. — copyright restrictions. But parents don't need the character on the invite. They need it to FEEL like the theme. Bold red/blue with a starburst FEELS like a superhero party. This approach is more reliable, looks more premium, and avoids legal issues.
+
+### Key architecture decisions (for when this gets built):
+- Private events need a visibility flag (public/private/invite-only)
+- Private events should NOT appear in main event listings or search
+- Private events need a nullable venue_id (party might be at someone's house, not a venue)
+- Invite links should work without login (show event details) but require signup to RSVP
+- Share images generated server-side (canvas API or image generation service)
+- Consider Vercel OG image generation for dynamic social preview images

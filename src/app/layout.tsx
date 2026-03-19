@@ -41,6 +41,11 @@ export default function RootLayout({
         <footer className="border-t border-[var(--border)] bg-gray-50 py-8">
           <div className="mx-auto max-w-6xl px-4 text-center text-sm text-gray-500">
             <p>CoolKids — Family events in Cherokee County & North Georgia</p>
+            <p className="mt-2">
+              <a href="/suggest" className="text-[var(--primary)] hover:underline">
+                Suggest a Venue
+              </a>
+            </p>
             <p className="mt-1">Open source project • Built with ❤️ for local families</p>
           </div>
         </footer>
