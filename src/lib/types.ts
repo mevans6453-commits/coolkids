@@ -74,6 +74,39 @@ export type VenueSuggestion = {
   created_at: string;
 };
 
+export type Profile = {
+  id: string;
+  email: string;
+  name: string | null;
+  zip: string | null;
+  kids_ages: number[];
+  interest_categories: string[];
+  max_distance_miles: number;
+  newsletter_preference: "weekly" | "monthly" | "none";
+  created_at: string;
+  updated_at: string;
+};
+
+export const INTEREST_CATEGORIES = [
+  "farms",
+  "museums",
+  "outdoor",
+  "arts",
+  "seasonal",
+  "sports",
+  "free",
+] as const;
+
+export type InterestCategory = (typeof INTEREST_CATEGORIES)[number];
+
+export type UserEventInteraction = {
+  id: string;
+  user_id: string;
+  event_id: string;
+  interaction_type: "star" | "attending";
+  created_at: string;
+};
+
 // Category options for venues and events
 export const CATEGORIES = [
   "farm",

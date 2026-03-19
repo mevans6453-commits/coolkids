@@ -1,22 +1,30 @@
-import { Mail } from "lucide-react";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import LoginForm from "@/components/login-form";
 
-// Subscribe page — placeholder for Phase 2
-export default function SubscribePage() {
+export default async function SubscribePage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (user) {
+    redirect("/profile");
+  }
+
   return (
-    <div className="mx-auto max-w-2xl px-4 py-16 text-center">
-      <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
-        <Mail className="h-8 w-8 text-blue-600" />
+    <div className="mx-auto max-w-md px-4 py-16">
+      <div className="text-center">
+        <h1 className="text-3xl font-bold text-gray-900">
+          Sign in to CoolKids
+        </h1>
+        <p className="mt-3 text-gray-600">
+          Get personalized family event recommendations, save your favorites,
+          and join the community.
+        </p>
       </div>
-      <h1 className="text-3xl font-bold text-gray-900">
-        Monthly Newsletter Coming Soon!
-      </h1>
-      <p className="mt-4 text-lg text-gray-600">
-        We&apos;re building a personalized monthly newsletter that matches family events
-        to your kids&apos; ages, interests, and how far you want to drive.
-      </p>
-      <p className="mt-2 text-gray-500">
-        Check back soon — this feature is coming in Phase 2!
-      </p>
+
+      <div className="mt-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <LoginForm />
+      </div>
     </div>
   );
 }

@@ -1,19 +1,38 @@
 import { supabase } from "@/lib/supabase";
 import type { Event } from "@/lib/types";
 import { Calendar, MapPin, DollarSign, Users } from "lucide-react";
+import InteractionButtons from "@/components/interaction-buttons";
 
 // Events page — shows upcoming family events from the database
 export const revalidate = 3600; // Refresh data every hour
 
 export default async function EventsPage() {
   // Fetch upcoming events with their venue info from Supabase
+  const today = new Date().toISOString().split("T")[0];
   const { data: events, error } = await supabase
     .from("events")
     .select("*, venue:venues(*)")
     .eq("status", "published")
-    .gte("start_date", new Date().toISOString().split("T")[0])
+    .or(`end_date.gte.${today},and(end_date.is.null,start_date.gte.${today})`)
     .order("start_date", { ascending: true })
     .limit(50);
+
+  // Fetch interaction counts for all events
+  const eventIds = events?.map((e: Event) => e.id) ?? [];
+  const { data: interactions } = eventIds.length > 0
+    ? await supabase
+        .from("user_event_interactions")
+        .select("event_id, interaction_type")
+        .in("event_id", eventIds)
+    : { data: [] };
+
+  // Aggregate counts per event
+  const counts: Record<string, { stars: number; attending: number }> = {};
+  for (const i of interactions ?? []) {
+    if (!counts[i.event_id]) counts[i.event_id] = { stars: 0, attending: 0 };
+    if (i.interaction_type === "star") counts[i.event_id].stars++;
+    if (i.interaction_type === "attending") counts[i.event_id].attending++;
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -48,7 +67,12 @@ export default async function EventsPage() {
       {events && events.length > 0 && (
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {events.map((event: Event) => (
-            <EventCard key={event.id} event={event} />
+            <EventCard
+              key={event.id}
+              event={event}
+              starCount={counts[event.id]?.stars ?? 0}
+              attendingCount={counts[event.id]?.attending ?? 0}
+            />
           ))}
         </div>
       )}
@@ -57,7 +81,7 @@ export default async function EventsPage() {
 }
 
 // Individual event card component
-function EventCard({ event }: { event: Event }) {
+function EventCard({ event, starCount, attendingCount }: { event: Event; starCount: number; attendingCount: number }) {
   // Format the date nicely (e.g., "Sat, Apr 12")
   const dateStr = new Date(event.start_date + "T00:00:00").toLocaleDateString(
     "en-US",
@@ -144,6 +168,13 @@ function EventCard({ event }: { event: Event }) {
           </a>
         )}
       </div>
+
+      {/* Star & Attending buttons */}
+      <InteractionButtons
+        eventId={event.id}
+        initialStarCount={starCount}
+        initialAttendingCount={attendingCount}
+      />
     </div>
   );
 }
