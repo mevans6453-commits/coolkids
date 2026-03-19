@@ -23,3 +23,7 @@ CREATE INDEX IF NOT EXISTS idx_interactions_hidden
 -- 4. Add pricing_notes field to events table
 ALTER TABLE events
   ADD COLUMN IF NOT EXISTS pricing_notes text;
+
+-- 5. Make venue_id NOT NULL on events (every event must belong to a venue)
+ALTER TABLE events
+  ALTER COLUMN venue_id SET NOT NULL;
