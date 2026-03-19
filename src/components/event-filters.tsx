@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ChevronDown, X, LayoutGrid, List } from "lucide-react";
+import { ChevronDown, X, LayoutGrid, List, CalendarDays } from "lucide-react";
 import { CATEGORIES } from "@/lib/types";
 
 export type SortOption = "date" | "venue" | "trending" | "recent";
 export type TimeFilter = "all" | "this-week" | "this-weekend" | "this-month" | "next-month";
 export type CostFilter = "all" | "free" | "under10" | "under25";
-export type ViewMode = "list" | "grid";
+export type ViewMode = "list" | "grid" | "calendar";
 
 type Props = {
   sortBy: SortOption;
@@ -124,10 +124,17 @@ export default function EventFilters(props: Props) {
           </button>
           <button
             onClick={() => onViewModeChange("grid")}
-            className={`rounded-r-lg p-1.5 ${viewMode === "grid" ? "bg-gray-100 text-gray-700" : "text-gray-400 hover:text-gray-600"}`}
+            className={`p-1.5 ${viewMode === "grid" ? "bg-gray-100 text-gray-700" : "text-gray-400 hover:text-gray-600"}`}
             title="Grid view"
           >
             <LayoutGrid className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => onViewModeChange("calendar")}
+            className={`rounded-r-lg p-1.5 ${viewMode === "calendar" ? "bg-gray-100 text-gray-700" : "text-gray-400 hover:text-gray-600"}`}
+            title="Calendar view"
+          >
+            <CalendarDays className="h-4 w-4" />
           </button>
         </div>
       </div>

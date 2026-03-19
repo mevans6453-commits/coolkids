@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Event } from "@/lib/types";
 import EventCard from "./event-card";
+import EventCalendar from "./event-calendar";
 import EventFilters, { type SortOption, type TimeFilter, type CostFilter, type ViewMode } from "./event-filters";
 
 type Props = {
@@ -158,6 +159,8 @@ export default function EventsClient({ events, interactionCounts }: Props) {
             Clear filters
           </button>
         </div>
+      ) : viewMode === "calendar" ? (
+        <EventCalendar events={filtered.events} interactionCounts={interactionCounts} />
       ) : (
         <div className={viewMode === "grid" ? "mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3" : "mt-6 space-y-2"}>
           {filtered.events.map((event) => (
