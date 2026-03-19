@@ -1,30 +1,31 @@
 /**
  * API Route: /api/scrape
- * 
- * Triggers the scraper to fetch events from venue websites.
- * 
+ *
+ * Multi-strategy scraper endpoint. Tries multiple scraping strategies
+ * per venue and uses whichever returns the best results.
+ *
  * Usage:
- *   POST /api/scrape              — scrape ALL configured venues
+ *   POST /api/scrape              — scrape ALL venues with scrape_url
  *   POST /api/scrape?venue=ID     — scrape a specific venue by ID
- * 
- * This endpoint is meant to be called by:
- *   - A cron job (monthly automated scraping)
- *   - Manually from the admin panel (future)
- *   - The test script during development
+ *   POST /api/scrape?detect=true  — force auto-detection (ignore preferred_strategy)
+ *
+ * Response includes per-venue strategy attempts so you can see what was tried.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { runScrapeAll } from "@/scrapers/scrape-engine";
 
+// Allow up to 60 seconds for scraping (requires Vercel Pro for >10s)
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   try {
-    // Check for a specific venue ID in the query string
     const { searchParams } = new URL(request.url);
     const venueId = searchParams.get("venue");
+    const forceDetect = searchParams.get("detect") === "true";
 
-    // Run the scrapers
     const venueIds = venueId ? [venueId] : undefined;
-    const summary = await runScrapeAll(venueIds);
+    const summary = await runScrapeAll(venueIds, forceDetect);
 
     return NextResponse.json({
       success: true,
@@ -40,8 +41,11 @@ export async function POST(request: NextRequest) {
       },
       results: summary.results.map((r) => ({
         venue: r.venue_name,
-        events_found: r.events.length,
+        strategy_used: r.strategy_used,
+        events_found: r.events_found,
+        events_saved: r.events_saved,
         error: r.error,
+        attempts: r.attempts,
       })),
     });
   } catch (err) {

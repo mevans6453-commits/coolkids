@@ -14,6 +14,7 @@ export type Venue = {
   website: string | null;
   scrape_url: string | null;
   scrape_method: "firecrawl" | "apify" | "manual" | null;
+  preferred_strategy: string | null;
   categories: string[];
   phone: string | null;
   description: string | null;
@@ -22,6 +23,18 @@ export type Venue = {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+};
+
+export type ScrapeRun = {
+  id: string;
+  venue_id: string;
+  strategy: string;
+  events_found: number;
+  events_saved: number;
+  status: "success" | "empty" | "error";
+  error_message: string | null;
+  duration_ms: number;
+  run_date: string;
 };
 
 export type Event = {

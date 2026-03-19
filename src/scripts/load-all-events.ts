@@ -5,7 +5,7 @@
  */
 
 import { createClient } from "@supabase/supabase-js";
-import { parseEventsFromMarkdown } from "../scrapers/apify-scraper";
+import { parseEventsFromMarkdown } from "../scrapers/parse-utils";
 import * as fs from "fs";
 import * as path from "path";
 

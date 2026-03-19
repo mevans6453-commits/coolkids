@@ -45,10 +45,12 @@ export type VenueConfig = {
   venue_name: string;
   /** URL to scrape for events */
   scrape_url: string;
-  /** Which scraper engine to use */
+  /** Which scraper engine to use (legacy — strategies replace this) */
   scrape_method: "apify" | "firecrawl" | "manual";
+  /** The strategy that worked best last time (from DB) */
+  preferred_strategy?: string | null;
   /** Default categories to apply to all events from this venue */
   default_categories: string[];
-  /** Optional: custom parser function to extract events from raw markdown */
-  parseEvents?: (markdown: string) => ScrapedEvent[];
+  /** Optional: custom parser function to extract events from raw content */
+  parseEvents?: (content: string) => ScrapedEvent[];
 };

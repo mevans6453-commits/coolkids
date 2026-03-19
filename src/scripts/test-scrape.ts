@@ -5,7 +5,7 @@
  * Run with: npx tsx src/scripts/test-scrape.ts
  */
 
-import { parseEventsFromMarkdown } from "../scrapers/apify-scraper";
+import { parseEventsFromMarkdown } from "../scrapers/parse-utils";
 
 // Sample markdown from Tellus Science Museum (scraped via Apify)
 const sampleMarkdown = `
