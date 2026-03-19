@@ -26,12 +26,13 @@ CoolKids is a local family events aggregator and community platform for parents 
 - Vercel hosting
 
 ## Database Tables
-- `venues` — 21 venues (only 4 have scraper configs: Tellus, Booth, Gibbs, Cagle's; the other 17 were manually seeded)
-- `events` — 45 events scraped from venue websites
+- `venues` — 21 venues (4 have hardcoded scraper configs; all 21 have scrape_urls and are auto-discovered by the multi-strategy engine)
+- `events` — 104 events (45 original + 59 scraped by multi-strategy scraper)
 - `profiles` — User profiles (ZIP, kids ages, interests, distance)
 - `user_event_interactions` — Stars, attending, hidden, reported records
 - `venue_suggestions` — User-submitted venue suggestions (table verified in Supabase)
 - `dad_jokes` — 30 dad jokes for daily rotation on homepage
+- `scrape_runs` — Logs every scrape attempt (venue_id, strategy, events_found, status, duration_ms)
 
 ## What's Been Built (Completed Phases)
 
@@ -52,7 +53,7 @@ CoolKids is a local family events aggregator and community platform for parents 
 ### Phase 2B: Event Interactions ✅
 - Star button (toggle, shows count)
 - "I'm Going" button (toggle, shows count)
-- My Events page (/my-events)
+- My Events page (/my-events) with list/calendar toggle
 - user_event_interactions table with RLS
 
 ### Phase 3: Event Page Improvements ✅
@@ -60,21 +61,24 @@ CoolKids is a local family events aggregator and community platform for parents 
 - When dropdown: All, This Week, This Weekend, This Month, Next Month
 - Cost dropdown: All, Free, Under $10, Under $25
 - Category dropdown with multi-select
-- List/grid view toggle
+- List/grid/calendar view toggle
 - Add to Calendar button (Google Calendar)
 - Hide/Report (Not Interested + Report) via flag icon
 - Pricing display: FREE badge, cost text, pricing_notes field
-- pricing_notes column added to events table
 
-### Phase 4: Data Polish ✅ (mostly)
-- Pricing backfill ✅ — All 45 events now have cost, cost_min, cost_max, and pricing_notes populated
-- Dad Jokes feature — Code fully built (table schema + component + 30 jokes), but migration has NOT been run in Supabase yet. Run the migration to activate.
+### Phase 4: Data Polish + Features ✅
+- Dad Joke of the Day on homepage (daily rotation, click-to-reveal punchline, 30 jokes seeded)
+- Suggest a Venue form (/suggest — venue name, URL, what makes it great, age range)
+- Calendar view of events (monthly grid, attending events pinned to top, prev/next month navigation)
+- My Events calendar/agenda view (attending events blue, starred events amber)
+- 10 new venues seeded (21 total — Scottsdale Farms, Pettit Creek, Mercier Orchards, Sequoyah Library, Chattahoochee Nature Center, Canton Theatre, Elm Street Arts, The Holler, Woodstock Arts + Cherokee Parks URL update)
+- Pricing backfill — all 104 events have cost, cost_min, cost_max, and pricing_notes
+- Multi-day event deduplication (consecutive-day duplicates merged, e.g. "Apr 4–5")
+- Expandable date ranges on multi-day events (chevron dropdown shows individual dates with per-date "Add to Calendar" buttons; weekends only for long spans)
+- Multi-strategy scraper system (5 strategies: jsonld, ical, rss, html, apify — auto-detection, fallback, scrape_runs logging, preferred_strategy stored per venue)
+- Mobile optimization (hamburger menu, stacked card layout, 44px touch targets, calendar fallback to list on small screens, 16px base font, iOS zoom prevention)
 
 ## What's NOT Built Yet
-- Suggest a Venue form (venue_suggestions table verified — ready to build UI)
-- Calendar view (toggle between list and calendar)
-- Scraper configs for 8 of 12 venues (only Tellus, Booth, Gibbs, Cagle's have configs)
-- Load full 97-venue master list
 - Newsletter (email service, template, personalization, cron)
 - Ratings ("How was it?" after events)
 - Friends/neighbors feature ("Mike's family is going")
@@ -84,29 +88,30 @@ CoolKids is a local family events aggregator and community platform for parents 
 - Deploy custom domain
 - Expand beyond kids to adult event channels
 - Private Events & Party Invites (see growth engine section below)
+- Scraper configs for remaining 13 empty venues (need manual entry or alternative URLs)
 
 ## Venues Currently in Database (21)
-1. Tellus Science Museum (12 events)
-2. Booth Western Art Museum (10 events)
-3. North Georgia Zoo (9 events)
-4. Gibbs Gardens (6 events)
-5. Cagle's Family Farm (4 events)
-6. Amicalola Falls State Park (2 events)
-7. Canton Farmers Market (1 event)
-8. Cherokee County Aquatic Center (1 event)
-9. Burt's Pumpkin Farm (0 — seasonal, fall only)
-10. Cherokee County Parks & Recreation (0 — updated URL to playcherokee.org)
-11. Ellijay Apple Houses (0 — seasonal, fall only)
-12. Reinhardt University (0 — different calendar system)
-13. Scottsdale Farms (0 — needs scraper or manual entry)
-14. Pettit Creek Farms (0 — needs scraper or manual entry)
-15. Mercier Orchards (0 — needs scraper or manual entry)
-16. Sequoyah Regional Library System (0 — needs scraper or manual entry)
-17. Chattahoochee Nature Center (0 — needs scraper or manual entry)
-18. Canton Theatre (0 — needs scraper or manual entry)
-19. Elm Street Cultural Arts Village (0 — needs scraper or manual entry)
-20. The Holler (0 — needs scraper or manual entry)
-21. Woodstock Arts (0 — needs scraper or manual entry)
+1. Tellus Science Museum (12 events — strategy: html)
+2. Booth Western Art Museum (20 events — strategy: jsonld)
+3. Chattahoochee Nature Center (12 events — strategy: jsonld)
+4. North Georgia Zoo (9 events — needs manual entry)
+5. Gibbs Gardens (6 events — needs manual entry)
+6. Reinhardt University (6 events — strategy: jsonld)
+7. Cagle's Family Farm (4 events — needs manual entry)
+8. Cherokee County Parks & Recreation (3 events — strategy: jsonld)
+9. Woodstock Arts (3 events — strategy: html)
+10. Amicalola Falls State Park (2 events — needs manual entry)
+11. Pettit Creek Farms (2 events — strategy: html)
+12. Canton Farmers Market (1 event — blocked by 403)
+13. Cherokee County Aquatic Center (1 event — blocked by 403)
+14. Ellijay Apple Houses (1 event — strategy: html)
+15. Burt's Pumpkin Farm (0 — site down)
+16. Canton Theatre (0 — needs manual entry)
+17. Elm Street Cultural Arts Village (0 — site down)
+18. Mercier Orchards (0 — needs manual entry)
+19. Scottsdale Farms (0 — needs manual entry)
+20. Sequoyah Regional Library System (0 — JS-rendered, needs Apify or iCal feed)
+21. The Holler (0 — needs manual entry)
 
 ## Key Architecture Notes
 - All IDs are UUIDs
@@ -116,10 +121,12 @@ CoolKids is a local family events aggregator and community platform for parents 
 - Supabase RLS enabled on all tables
 - Auth uses magic link email only (no passwords)
 - Vercel auto-deploys when code is pushed to main on GitHub
-- Scraper requires APIFY_API_TOKEN in .env.local to run (not currently set up)
+- APIFY_API_TOKEN set in .env.local (for Apify scraping strategy)
+- Multi-strategy scraper auto-discovers venues from DB (any venue with scrape_url gets scraped)
+- scrape_runs table logs every attempt; venues.preferred_strategy stores the winning strategy
 
 ## Pricing Data Status ✅ COMPLETE
-- All 45 events now have pricing data (cost, cost_min, cost_max, pricing_notes)
+- All 104 events now have pricing data (cost, cost_min, cost_max, pricing_notes)
 - FREE events properly flagged with is_free = true
 - Cost filters (Free, Under $10, Under $25) are functional
 
@@ -131,9 +138,9 @@ CoolKids is a local family events aggregator and community platform for parents 
 - Small local vendors (farms, markets, family businesses) often have non-standard websites — Facebook pages, PDFs, image-only calendars, no calendar at all
 - The goal is to build scraping tools that work for EVERYBODY, not just venues with perfect websites
 - If a venue can't be scraped automatically, flag it for manual entry
-- Scrape monitoring should log: which venues returned events, which returned zero, which errored
-- Store scrape logs in a scrape_runs table: run_date, venue_id, events_found, status (success/empty/error), error_message
+- Scrape monitoring logs every attempt to scrape_runs table: venue_id, strategy, events_found, status (success/empty/error), error_message, duration_ms
 - Every venue deserves a fair chance to have their events discovered
+- Multi-strategy approach: try jsonld → ical → rss → html → apify in priority order; first strategy that returns events wins
 
 ## Mike's Design Preferences
 - Clean, not cluttered — Airbnb-style compact UI
