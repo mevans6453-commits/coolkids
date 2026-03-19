@@ -6,6 +6,7 @@ import type { Event } from "@/lib/types";
 import EventCard from "./event-card";
 import EventCalendar from "./event-calendar";
 import EventFilters, { type SortOption, type TimeFilter, type CostFilter, type ViewMode } from "./event-filters";
+import { mergeConsecutiveEvents } from "@/lib/event-utils";
 
 type Props = {
   events: Event[];
@@ -130,6 +131,9 @@ export default function EventsClient({ events, interactionCounts }: Props) {
       }
       return 0;
     });
+
+    // Merge consecutive-day duplicates (e.g. "Museums On Us" Apr 4 + Apr 5 → one card showing Apr 4–5)
+    result = mergeConsecutiveEvents(result);
 
     return { events: result, totalAfterHidden };
   }, [events, hiddenIds, timeFilter, costFilter, selectedCategories, sortBy, interactionCounts]);
