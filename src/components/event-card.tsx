@@ -1,6 +1,7 @@
 import type { Event } from "@/lib/types";
 import { Calendar, MapPin, DollarSign, Users } from "lucide-react";
 import { formatDateRange } from "@/lib/event-utils";
+import ExpandableDateRange from "./expandable-date-range";
 import InteractionButtons from "./interaction-buttons";
 import EventActions from "./event-actions";
 
@@ -27,10 +28,8 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
       <div className="rounded-lg border border-gray-200 bg-white px-5 py-4 hover:shadow-sm">
         <div className="flex items-start gap-4">
           {/* Date column */}
-          <div className="hidden w-20 flex-shrink-0 pt-0.5 text-center sm:block">
-            <div className="text-sm font-bold text-[var(--primary)]">
-              {formatDateRange(event.start_date, event.end_date)}
-            </div>
+          <div className="hidden w-28 flex-shrink-0 pt-0.5 text-center sm:block">
+            <ExpandableDateRange event={event} />
             {event.start_time && (
               <div className="text-xs text-gray-500">{event.start_time}</div>
             )}
@@ -117,9 +116,12 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
         )}
 
         <div className="mt-auto space-y-2 pt-4 text-sm text-gray-500">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 flex-shrink-0" />
-            <span>{formatDateRange(event.start_date, event.end_date)}{event.start_time && ` \u2022 ${event.start_time}`}</span>
+          <div className="flex items-start gap-2">
+            <Calendar className="mt-0.5 h-4 w-4 flex-shrink-0" />
+            <div>
+              <ExpandableDateRange event={event} />
+              {event.start_time && <span className="text-sm text-gray-500"> {event.start_time}</span>}
+            </div>
           </div>
 
           {event.venue && (

@@ -26,7 +26,7 @@ CoolKids is a local family events aggregator and community platform for parents 
 - Vercel hosting
 
 ## Database Tables
-- `venues` — 12 venues (only 4 have scraper configs: Tellus, Booth, Gibbs, Cagle's; the other 8 were manually seeded)
+- `venues` — 21 venues (only 4 have scraper configs: Tellus, Booth, Gibbs, Cagle's; the other 17 were manually seeded)
 - `events` — 45 events scraped from venue websites
 - `profiles` — User profiles (ZIP, kids ages, interests, distance)
 - `user_event_interactions` — Stars, attending, hidden, reported records
@@ -85,7 +85,7 @@ CoolKids is a local family events aggregator and community platform for parents 
 - Expand beyond kids to adult event channels
 - Private Events & Party Invites (see growth engine section below)
 
-## Venues Currently in Database (12)
+## Venues Currently in Database (21)
 1. Tellus Science Museum (12 events)
 2. Booth Western Art Museum (10 events)
 3. North Georgia Zoo (9 events)
@@ -95,9 +95,18 @@ CoolKids is a local family events aggregator and community platform for parents 
 7. Canton Farmers Market (1 event)
 8. Cherokee County Aquatic Center (1 event)
 9. Burt's Pumpkin Farm (0 — seasonal, fall only)
-10. Cherokee County Parks & Recreation (0 — no public calendar)
+10. Cherokee County Parks & Recreation (0 — updated URL to playcherokee.org)
 11. Ellijay Apple Houses (0 — seasonal, fall only)
 12. Reinhardt University (0 — different calendar system)
+13. Scottsdale Farms (0 — needs scraper or manual entry)
+14. Pettit Creek Farms (0 — needs scraper or manual entry)
+15. Mercier Orchards (0 — needs scraper or manual entry)
+16. Sequoyah Regional Library System (0 — needs scraper or manual entry)
+17. Chattahoochee Nature Center (0 — needs scraper or manual entry)
+18. Canton Theatre (0 — needs scraper or manual entry)
+19. Elm Street Cultural Arts Village (0 — needs scraper or manual entry)
+20. The Holler (0 — needs scraper or manual entry)
+21. Woodstock Arts (0 — needs scraper or manual entry)
 
 ## Key Architecture Notes
 - All IDs are UUIDs

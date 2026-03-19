@@ -36,6 +36,39 @@ export function buildGoogleCalendarUrl(event: Event): string {
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
+/**
+ * Build a Google Calendar URL for a SPECIFIC DATE within a multi-day event.
+ * Creates a single-day event using the event's time info.
+ */
+export function buildGoogleCalendarUrlForDate(event: Event, specificDate: string): string {
+  const params = new URLSearchParams();
+  params.set("action", "TEMPLATE");
+  params.set("text", event.name);
+
+  if (event.start_time) {
+    const start = toGCalDateTime(specificDate, event.start_time);
+    const end = event.end_time
+      ? toGCalDateTime(specificDate, event.end_time)
+      : toGCalDateTime(specificDate, event.start_time, 2);
+    params.set("dates", `${start}/${end}`);
+  } else {
+    const start = specificDate.replace(/-/g, "");
+    const end = nextDay(specificDate).replace(/-/g, "");
+    params.set("dates", `${start}/${end}`);
+  }
+
+  if (event.description) {
+    params.set("details", event.description);
+  }
+
+  if (event.venue) {
+    const parts = [event.venue.name, event.venue.address, event.venue.city, event.venue.state].filter(Boolean);
+    params.set("location", parts.join(", "));
+  }
+
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
 /** Convert "2026-03-21" + "9:30 AM" to "20260321T093000" */
 function toGCalDateTime(date: string, time: string, addHours = 0): string {
   const datePart = date.replace(/-/g, "");

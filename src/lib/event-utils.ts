@@ -71,6 +71,45 @@ function isConsecutiveDay(dateA: string, dateB: string): boolean {
 }
 
 /**
+ * Generate the list of individual dates to show when a multi-day event is expanded.
+ * - Spans ≤ 7 days: every day
+ * - Spans > 7 days: weekends only (Sat/Sun)
+ */
+export type ExpandedDate = {
+  date: string;   // "YYYY-MM-DD"
+  label: string;  // "Sat, Mar 1"
+};
+
+export function getExpandedDates(startDate: string, endDate: string): ExpandedDate[] {
+  const start = new Date(startDate + "T00:00:00");
+  const end = new Date(endDate + "T00:00:00");
+  const diffDays = Math.round((end.getTime() - start.getTime()) / 86400000);
+
+  const dates: ExpandedDate[] = [];
+  const cursor = new Date(start);
+
+  while (cursor <= end) {
+    const dayOfWeek = cursor.getDay(); // 0=Sun, 6=Sat
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+    if (diffDays <= 7 || isWeekend) {
+      dates.push({
+        date: cursor.toISOString().split("T")[0],
+        label: cursor.toLocaleDateString("en-US", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        }),
+      });
+    }
+
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return dates;
+}
+
+/**
  * Format a date range for display.
  * Single day: "Sat, Mar 21"
  * Multi-day same month: "Apr 4–5"
