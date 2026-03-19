@@ -15,7 +15,10 @@ export type ScrapedEvent = {
   start_time: string | null;
   end_time: string | null;
   cost: string | null;
+  cost_min: number | null;
+  cost_max: number | null;
   is_free: boolean;
+  pricing_notes: string | null;
   age_range_min: number | null;
   age_range_max: number | null;
   categories: string[];
