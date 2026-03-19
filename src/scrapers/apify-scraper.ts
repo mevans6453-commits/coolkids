@@ -174,7 +174,10 @@ export function parseEventsFromMarkdown(
       start_time: timeInfo?.start_time || null,
       end_time: timeInfo?.end_time || null,
       cost: costInfo?.cost || null,
+      cost_min: costInfo?.cost_min ?? null,
+      cost_max: costInfo?.cost_max ?? null,
       is_free: costInfo?.is_free || false,
+      pricing_notes: costInfo?.pricing_notes ?? null,
       age_range_min: null,
       age_range_max: null,
       categories: [...defaultCategories],
@@ -303,17 +306,53 @@ function extractTime(
 /** Extract cost information from text */
 function extractCost(
   text: string
-): { cost: string; is_free: boolean } | null {
-  if (/\bfree\b/i.test(text)) {
-    return { cost: "Free", is_free: true };
+): { cost: string; cost_min: number; cost_max: number; is_free: boolean; pricing_notes: string | null } | null {
+  const result = { cost: "", cost_min: 0, cost_max: 0, is_free: false, pricing_notes: null as string | null };
+
+  // Look for pricing notes: discount/free mentions for specific groups
+  const notesPatterns = [
+    /(?:kids|children)\s+(?:under|ages?\s+\d+(?:\s*[-–]\s*\d+)?)\s+free/i,
+    /(?:members?|military|seniors?|students?)\s+(?:free|discount|\d+%\s+off)/i,
+    /family\s+(?:\d+-?pack|rate|discount)/i,
+    /group\s+(?:rate|discount)/i,
+    /free\s+(?:for|with)\s+\w+/i,
+    /\d+%\s+off/i,
+  ];
+  const noteMatches: string[] = [];
+  for (const p of notesPatterns) {
+    const m = text.match(p);
+    if (m) noteMatches.push(m[0].trim());
+  }
+  if (noteMatches.length > 0) result.pricing_notes = noteMatches.join("; ");
+
+  // Check for free (but not "free for X" which is conditional)
+  if (/\bfree\s*(?:admission|entry|event)?\b/i.test(text) && !/free\s+for\b/i.test(text)) {
+    result.cost = "Free";
+    result.is_free = true;
+    return result;
   }
 
-  const priceMatch = text.match(/\$(\d+(?:\.\d{2})?)/);
-  if (priceMatch) {
-    return { cost: `$${priceMatch[1]}`, is_free: false };
+  // Range: "$8-$12", "$8 - $12", "$8–$12"
+  const rangeMatch = text.match(/\$(\d+(?:\.\d{2})?)\s*[-–—]\s*\$?(\d+(?:\.\d{2})?)/);
+  if (rangeMatch) {
+    result.cost_min = parseFloat(rangeMatch[1]);
+    result.cost_max = parseFloat(rangeMatch[2]);
+    result.cost = `$${rangeMatch[1]}-$${rangeMatch[2]}`;
+    return result;
   }
 
-  return null;
+  // Single price with context: "$30 per person", "$10/child"
+  const priceContextMatch = text.match(/\$(\d+(?:\.\d{2})?)\s*(per\s+\w+|\/\w+|each|adults?|kids?|children)?/i);
+  if (priceContextMatch) {
+    const val = parseFloat(priceContextMatch[1]);
+    result.cost_min = val;
+    result.cost_max = val;
+    result.cost = priceContextMatch[2] ? `$${priceContextMatch[1]} ${priceContextMatch[2].trim()}` : `$${priceContextMatch[1]}`;
+    result.is_free = val === 0;
+    return result;
+  }
+
+  return noteMatches.length > 0 ? result : null;
 }
 
 /** Extract a short description from the section */
