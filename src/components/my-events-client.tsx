@@ -1,10 +1,18 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Calendar, MapPin, Star, Hand, List, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  MapPin, Star, Hand, List, CalendarDays,
+  ChevronLeft, ChevronRight, X,
+} from "lucide-react";
 import { formatDateRange } from "@/lib/event-utils";
 import type { Event } from "@/lib/types";
+
+// -----------------------------------------------
+// Types
+// -----------------------------------------------
 
 type Props = {
   attending: Event[];
@@ -13,16 +21,93 @@ type Props = {
 
 type ViewMode = "list" | "calendar";
 
-export default function MyEventsClient({ attending, starred }: Props) {
+// -----------------------------------------------
+// Main Component
+// -----------------------------------------------
+
+export default function MyEventsClient({ attending: initialAttending, starred: initialStarred }: Props) {
+  const supabase = createClient();
+  const router = useRouter();
   const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [attendingList, setAttendingList] = useState<Event[]>(initialAttending);
+  const [starredList, setStarredList] = useState<Event[]>(initialStarred);
+  const [removing, setRemoving] = useState<Set<string>>(new Set());
+
+  // Quick lookup sets
+  const attendingIds = useMemo(() => new Set(attendingList.map((e) => e.id)), [attendingList]);
+  const starredIds = useMemo(() => new Set(starredList.map((e) => e.id)), [starredList]);
+
+  // Total unique events saved
+  const totalEvents = useMemo(() => {
+    const all = new Set([...attendingList.map((e) => e.id), ...starredList.map((e) => e.id)]);
+    return all.size;
+  }, [attendingList, starredList]);
+
+  // Toggle an interaction (star or attending) on/off
+  const toggleInteraction = useCallback(
+    async (eventId: string, type: "star" | "attending") => {
+      const isActive = type === "star" ? starredIds.has(eventId) : attendingIds.has(eventId);
+
+      setRemoving((prev) => new Set(prev).add(`${eventId}-${type}`));
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setRemoving((prev) => { const n = new Set(prev); n.delete(`${eventId}-${type}`); return n; });
+        return;
+      }
+
+      if (isActive) {
+        // Remove interaction
+        const { error } = await supabase
+          .from("user_event_interactions")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("event_id", eventId)
+          .eq("interaction_type", type);
+
+        if (!error) {
+          if (type === "star") {
+            setStarredList((prev) => prev.filter((e) => e.id !== eventId));
+          } else {
+            setAttendingList((prev) => prev.filter((e) => e.id !== eventId));
+          }
+        }
+      } else {
+        // Add interaction
+        const { error } = await supabase
+          .from("user_event_interactions")
+          .insert({ user_id: user.id, event_id: eventId, interaction_type: type });
+
+        if (!error) {
+          // Find the event object from either list
+          const event = [...attendingList, ...starredList].find((e) => e.id === eventId);
+          if (event) {
+            if (type === "star") {
+              setStarredList((prev) => [...prev, event]);
+            } else {
+              setAttendingList((prev) => [...prev, event]);
+            }
+          }
+        }
+      }
+
+      setRemoving((prev) => {
+        const next = new Set(prev);
+        next.delete(`${eventId}-${type}`);
+        return next;
+      });
+
+      // Refresh server data to stay in sync
+      router.refresh();
+    },
+    [supabase, router, attendingIds, starredIds, attendingList, starredList]
+  );
 
   return (
     <>
       {/* View toggle */}
       <div className="mt-6 flex items-center justify-between">
-        <p className="text-sm text-gray-500">
-          {attending.length + starred.length} events saved
-        </p>
+        <p className="text-sm text-gray-500">{totalEvents} events saved</p>
         <div className="flex rounded-lg border border-gray-200">
           <button
             onClick={() => setViewMode("list")}
@@ -42,16 +127,42 @@ export default function MyEventsClient({ attending, starred }: Props) {
       </div>
 
       {viewMode === "list" ? (
-        <MyEventsList attending={attending} starred={starred} />
+        <MyEventsList
+          attending={attendingList}
+          starred={starredList}
+          attendingIds={attendingIds}
+          starredIds={starredIds}
+          removing={removing}
+          onToggle={toggleInteraction}
+        />
       ) : (
-        <MyEventsCalendar attending={attending} starred={starred} />
+        <MyEventsCalendar
+          attending={attendingList}
+          starred={starredList}
+          attendingIds={attendingIds}
+          starredIds={starredIds}
+          removing={removing}
+          onToggle={toggleInteraction}
+        />
       )}
     </>
   );
 }
 
-/** List view — same as before but with date ranges */
-function MyEventsList({ attending, starred }: Props) {
+// -----------------------------------------------
+// List View
+// -----------------------------------------------
+
+type ListProps = {
+  attending: Event[];
+  starred: Event[];
+  attendingIds: Set<string>;
+  starredIds: Set<string>;
+  removing: Set<string>;
+  onToggle: (eventId: string, type: "star" | "attending") => void;
+};
+
+function MyEventsList({ attending, starred, attendingIds, starredIds, removing, onToggle }: ListProps) {
   return (
     <>
       {/* Attending section */}
@@ -67,7 +178,14 @@ function MyEventsList({ attending, starred }: Props) {
         ) : (
           <div className="mt-4 space-y-2">
             {attending.map((event) => (
-              <MiniEventRow key={event.id} event={event} type="attending" />
+              <MiniEventRow
+                key={event.id}
+                event={event}
+                isStarred={starredIds.has(event.id)}
+                isAttending={attendingIds.has(event.id)}
+                removing={removing}
+                onToggle={onToggle}
+              />
             ))}
           </div>
         )}
@@ -86,7 +204,14 @@ function MyEventsList({ attending, starred }: Props) {
         ) : (
           <div className="mt-4 space-y-2">
             {starred.map((event) => (
-              <MiniEventRow key={event.id} event={event} type="starred" />
+              <MiniEventRow
+                key={event.id}
+                event={event}
+                isStarred={starredIds.has(event.id)}
+                isAttending={attendingIds.has(event.id)}
+                removing={removing}
+                onToggle={onToggle}
+              />
             ))}
           </div>
         )}
@@ -95,15 +220,35 @@ function MyEventsList({ attending, starred }: Props) {
   );
 }
 
-/** Compact list row for My Events */
-function MiniEventRow({ event, type }: { event: Event; type: "attending" | "starred" }) {
+// -----------------------------------------------
+// Mini Event Row (with toggle buttons)
+// -----------------------------------------------
+
+function MiniEventRow({
+  event,
+  isStarred,
+  isAttending,
+  removing,
+  onToggle,
+}: {
+  event: Event;
+  isStarred: boolean;
+  isAttending: boolean;
+  removing: Set<string>;
+  onToggle: (eventId: string, type: "star" | "attending") => void;
+}) {
+  const starRemoving = removing.has(`${event.id}-star`);
+  const attendRemoving = removing.has(`${event.id}-attending`);
+
   return (
-    <div className={`flex items-center gap-4 rounded-lg border px-4 py-3 ${
-      type === "attending" ? "border-blue-200 bg-blue-50/50" : "border-gray-200 bg-white"
-    }`}>
+    <div
+      className={`flex items-center gap-3 rounded-lg border px-4 py-3 sm:gap-4 ${
+        isAttending ? "border-blue-200 bg-blue-50/50" : "border-gray-200 bg-white"
+      }`}
+    >
       {/* Date */}
-      <div className="hidden w-16 flex-shrink-0 text-center sm:block">
-        <div className="text-sm font-bold text-[var(--primary)]">
+      <div className="hidden w-24 flex-shrink-0 text-center sm:block">
+        <div className="text-sm font-bold text-[var(--primary)] whitespace-nowrap">
           {formatDateRange(event.start_date, event.end_date)}
         </div>
         {event.start_time && (
@@ -134,36 +279,58 @@ function MiniEventRow({ event, type }: { event: Event; type: "attending" | "star
         </div>
       </div>
 
-      {/* Badge */}
-      <div className="flex-shrink-0">
-        {type === "attending" ? (
-          <span className="flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">
-            <Hand className="h-3 w-3" /> Going
-          </span>
-        ) : (
-          <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
-            <Star className="h-3 w-3 fill-amber-500" /> Starred
-          </span>
-        )}
+      {/* Toggle buttons */}
+      <div className="flex flex-shrink-0 gap-1.5">
+        <button
+          onClick={() => onToggle(event.id, "star")}
+          disabled={starRemoving}
+          title={isStarred ? "Remove star" : "Star this event"}
+          className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors min-h-[44px] sm:min-h-0 ${
+            isStarred
+              ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
+              : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+          } ${starRemoving ? "opacity-50" : ""}`}
+        >
+          <Star className={`h-3.5 w-3.5 ${isStarred ? "fill-amber-500" : ""}`} />
+          <span className="hidden sm:inline">{isStarred ? "Starred" : "Star"}</span>
+        </button>
+        <button
+          onClick={() => onToggle(event.id, "attending")}
+          disabled={attendRemoving}
+          title={isAttending ? "Remove attendance" : "Mark as going"}
+          className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors min-h-[44px] sm:min-h-0 ${
+            isAttending
+              ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+              : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+          } ${attendRemoving ? "opacity-50" : ""}`}
+        >
+          <Hand className={`h-3.5 w-3.5 ${isAttending ? "fill-blue-500" : ""}`} />
+          <span className="hidden sm:inline">{isAttending ? "Going" : "Go"}</span>
+        </button>
       </div>
     </div>
   );
 }
 
-/** Calendar/Agenda view for My Events */
-function MyEventsCalendar({ attending, starred }: Props) {
+// -----------------------------------------------
+// Calendar View (with fixed multi-day events)
+// -----------------------------------------------
+
+type CalendarProps = ListProps;
+
+function MyEventsCalendar({ attending, starred, attendingIds, starredIds, removing, onToggle }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
   const monthName = currentMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
-  const attendingIds = new Set(attending.map((e) => e.id));
+  // Combine and deduplicate events
   const allEvents = useMemo(() => {
-    // Combine and deduplicate (an event could be both starred and attending)
     const map = new Map<string, Event>();
     for (const e of attending) map.set(e.id, e);
     for (const e of starred) if (!map.has(e.id)) map.set(e.id, e);
@@ -181,19 +348,34 @@ function MyEventsCalendar({ attending, starred }: Props) {
     return days;
   }, [year, month]);
 
-  // Group events by date
+  // Group events by date — FIXED: long-span events show weekends only
   const eventsByDate = useMemo(() => {
     const map: Record<string, Event[]> = {};
+
     for (const e of allEvents) {
       const start = new Date(e.start_date + "T00:00:00");
       const end = e.end_date ? new Date(e.end_date + "T00:00:00") : start;
-      const cursor = new Date(Math.max(start.getTime(), new Date(year, month, 1).getTime()));
-      const lastDay = new Date(Math.min(end.getTime(), new Date(year, month + 1, 0).getTime()));
+      const diffDays = Math.round((end.getTime() - start.getTime()) / 86400000);
 
-      while (cursor <= lastDay) {
-        const key = cursor.toISOString().split("T")[0];
-        if (!map[key]) map[key] = [];
-        map[key].push(e);
+      // Clamp to current month boundaries
+      const monthStart = new Date(year, month, 1);
+      const monthEnd = new Date(year, month + 1, 0);
+      const rangeStart = new Date(Math.max(start.getTime(), monthStart.getTime()));
+      const rangeEnd = new Date(Math.min(end.getTime(), monthEnd.getTime()));
+
+      const cursor = new Date(rangeStart);
+      while (cursor <= rangeEnd) {
+        const dayOfWeek = cursor.getDay();
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+        // Short spans (≤7 days): show every day
+        // Long spans (>7 days): show weekends only
+        if (diffDays <= 7 || isWeekend) {
+          const key = cursor.toISOString().split("T")[0];
+          if (!map[key]) map[key] = [];
+          map[key].push(e);
+        }
+
         cursor.setDate(cursor.getDate() + 1);
       }
     }
@@ -201,29 +383,40 @@ function MyEventsCalendar({ attending, starred }: Props) {
     // Sort: attending first, then starred
     for (const key of Object.keys(map)) {
       map[key].sort((a, b) => {
-        const aAttending = attendingIds.has(a.id) ? 0 : 1;
-        const bAttending = attendingIds.has(b.id) ? 0 : 1;
-        if (aAttending !== bAttending) return aAttending - bAttending;
+        const aAtt = attendingIds.has(a.id) ? 0 : 1;
+        const bAtt = attendingIds.has(b.id) ? 0 : 1;
+        if (aAtt !== bAtt) return aAtt - bAtt;
         return a.name.localeCompare(b.name);
       });
     }
+
     return map;
   }, [allEvents, year, month, attendingIds]);
 
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
+  // Clear selection when switching months
+  function changeMonth(delta: number) {
+    setSelectedEvent(null);
+    setCurrentMonth(new Date(year, month + delta, 1));
+  }
+
   return (
     <div className="mt-6">
       {/* Month header */}
       <div className="mb-4 flex items-center justify-between">
-        <button onClick={() => setCurrentMonth(new Date(year, month - 1, 1))}
-          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100">
+        <button
+          onClick={() => changeMonth(-1)}
+          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
+        >
           <ChevronLeft className="h-5 w-5" />
         </button>
         <h3 className="text-lg font-semibold text-gray-900">{monthName}</h3>
-        <button onClick={() => setCurrentMonth(new Date(year, month + 1, 1))}
-          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100">
+        <button
+          onClick={() => changeMonth(1)}
+          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
+        >
           <ChevronRight className="h-5 w-5" />
         </button>
       </div>
@@ -239,7 +432,9 @@ function MyEventsCalendar({ attending, starred }: Props) {
       <div className="grid grid-cols-7 border-l border-gray-200">
         {calendarDays.map((day, i) => {
           if (day === null) {
-            return <div key={`blank-${i}`} className="min-h-[90px] border-b border-r border-gray-200 bg-gray-50 sm:min-h-[110px]" />;
+            return (
+              <div key={`blank-${i}`} className="min-h-[90px] border-b border-r border-gray-200 bg-gray-50 sm:min-h-[110px]" />
+            );
           }
 
           const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -247,37 +442,112 @@ function MyEventsCalendar({ attending, starred }: Props) {
           const isToday = dateStr === todayStr;
 
           return (
-            <div key={dateStr}
+            <div
+              key={dateStr}
               className={`min-h-[90px] border-b border-r border-gray-200 p-1 sm:min-h-[110px] sm:p-1.5 ${
                 isToday ? "bg-blue-50/50" : "bg-white"
-              }`}>
+              }`}
+            >
               <div className={`mb-0.5 text-xs font-medium ${isToday ? "text-[var(--primary)]" : "text-gray-500"}`}>
                 {isToday ? (
-                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--primary)] text-white">{day}</span>
-                ) : day}
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--primary)] text-white">
+                    {day}
+                  </span>
+                ) : (
+                  day
+                )}
               </div>
               <div className="space-y-0.5">
                 {dayEvents.slice(0, 3).map((e) => {
-                  const isAttending = attendingIds.has(e.id);
+                  const isAtt = attendingIds.has(e.id);
+                  const isSelected = selectedEvent?.id === e.id;
                   return (
-                    <div key={e.id}
-                      className={`truncate rounded px-1 py-0.5 text-[10px] leading-tight sm:text-xs ${
-                        isAttending ? "bg-blue-100 font-medium text-blue-800" : "bg-amber-50 text-amber-800"
+                    <button
+                      key={e.id}
+                      onClick={() => setSelectedEvent(isSelected ? null : e)}
+                      className={`w-full truncate rounded px-1 py-0.5 text-left text-[10px] leading-tight sm:text-xs ${
+                        isSelected
+                          ? "ring-2 ring-[var(--primary)] ring-offset-1"
+                          : ""
+                      } ${
+                        isAtt
+                          ? "bg-blue-100 font-medium text-blue-800"
+                          : "bg-amber-50 text-amber-800"
                       }`}
-                      title={`${isAttending ? "Going: " : "Starred: "}${e.name}${e.venue ? ` — ${e.venue.name}` : ""}`}>
-                      {isAttending ? <Hand className="mr-0.5 inline h-2.5 w-2.5" /> : <Star className="mr-0.5 inline h-2.5 w-2.5" />}
+                      title={`${isAtt ? "Going: " : "Starred: "}${e.name}${e.venue ? ` — ${e.venue.name}` : ""}`}
+                    >
+                      {isAtt ? (
+                        <Hand className="mr-0.5 inline h-2.5 w-2.5" />
+                      ) : (
+                        <Star className="mr-0.5 inline h-2.5 w-2.5" />
+                      )}
                       {e.name}
-                    </div>
+                    </button>
                   );
                 })}
                 {dayEvents.length > 3 && (
-                  <div className="px-1 text-[10px] text-gray-400">+{dayEvents.length - 3} more</div>
+                  <div className="px-1 text-[10px] text-gray-400">
+                    +{dayEvents.length - 3} more
+                  </div>
                 )}
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* Selected event detail panel */}
+      {selectedEvent && (
+        <div className="mt-3 rounded-lg border border-gray-200 bg-white p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h4 className="font-semibold text-gray-900">{selectedEvent.name}</h4>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                {selectedEvent.venue && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />
+                    {selectedEvent.venue.name}
+                  </span>
+                )}
+                <span>{formatDateRange(selectedEvent.start_date, selectedEvent.end_date)}</span>
+                {selectedEvent.start_time && <span>· {selectedEvent.start_time}</span>}
+              </div>
+            </div>
+            <button
+              onClick={() => setSelectedEvent(null)}
+              className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={() => onToggle(selectedEvent.id, "star")}
+              disabled={removing.has(`${selectedEvent.id}-star`)}
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                starredIds.has(selectedEvent.id)
+                  ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
+                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+              }`}
+            >
+              <Star className={`h-3.5 w-3.5 ${starredIds.has(selectedEvent.id) ? "fill-amber-500" : ""}`} />
+              {starredIds.has(selectedEvent.id) ? "Starred" : "Star"}
+            </button>
+            <button
+              onClick={() => onToggle(selectedEvent.id, "attending")}
+              disabled={removing.has(`${selectedEvent.id}-attending`)}
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                attendingIds.has(selectedEvent.id)
+                  ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+              }`}
+            >
+              <Hand className={`h-3.5 w-3.5 ${attendingIds.has(selectedEvent.id) ? "fill-blue-500" : ""}`} />
+              {attendingIds.has(selectedEvent.id) ? "Going" : "I'm Going"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Legend */}
       <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
@@ -288,6 +558,9 @@ function MyEventsCalendar({ attending, starred }: Props) {
         <div className="flex items-center gap-1">
           <div className="h-3 w-3 rounded bg-amber-50 ring-1 ring-amber-200" />
           <span>Starred</span>
+        </div>
+        <div className="flex items-center gap-1 text-gray-400">
+          Tap an event to edit
         </div>
       </div>
     </div>

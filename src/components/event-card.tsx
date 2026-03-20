@@ -4,6 +4,7 @@ import { formatDateRange } from "@/lib/event-utils";
 import ExpandableDateRange from "./expandable-date-range";
 import InteractionButtons from "./interaction-buttons";
 import EventActions from "./event-actions";
+import ShareButton from "./share-button";
 
 type Props = {
   event: Event;
@@ -27,8 +28,8 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
     return (
       <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 hover:shadow-sm sm:px-5 sm:py-4">
         <div className="flex items-start gap-3 sm:gap-4">
-          {/* Date column — desktop only */}
-          <div className="hidden w-28 flex-shrink-0 pt-0.5 text-center sm:block">
+          {/* Date column — desktop only (w-36 fits "Mar 30 – Apr 14") */}
+          <div className="hidden w-36 flex-shrink-0 pt-0.5 text-center sm:block">
             <ExpandableDateRange event={event} />
             {event.start_time && (
               <div className="text-xs text-gray-500">{event.start_time}</div>
@@ -82,6 +83,7 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
             {/* Interaction buttons — mobile: below content, full width */}
             <div className="mt-2 flex items-center gap-2 sm:hidden">
               <InteractionButtons eventId={event.id} initialStarCount={starCount} initialAttendingCount={attendingCount} />
+              <ShareButton event={event} />
               <EventActions event={event} onHide={onHide} />
             </div>
           </div>
@@ -89,6 +91,7 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
           {/* Actions column — desktop only */}
           <div className="hidden flex-shrink-0 items-center gap-2 sm:flex">
             <InteractionButtons eventId={event.id} initialStarCount={starCount} initialAttendingCount={attendingCount} />
+            <ShareButton event={event} />
             <EventActions event={event} onHide={onHide} />
           </div>
         </div>
@@ -167,7 +170,10 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
         )}
       </div>
 
-      <InteractionButtons eventId={event.id} initialStarCount={starCount} initialAttendingCount={attendingCount} />
+      <div className="flex items-center gap-2 px-5 pb-4">
+        <InteractionButtons eventId={event.id} initialStarCount={starCount} initialAttendingCount={attendingCount} />
+        <ShareButton event={event} />
+      </div>
     </div>
   );
 }
