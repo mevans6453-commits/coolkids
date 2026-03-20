@@ -27,7 +27,7 @@ CoolKids is a local family events aggregator and community platform for parents 
 
 ## Database Tables
 - `venues` — 21 venues (4 have hardcoded scraper configs; all 21 have scrape_urls and are auto-discovered by the multi-strategy engine)
-- `events` — 104 events (45 original + 59 scraped by multi-strategy scraper)
+- `events` — 93 events across 21 venues (with event_type classification + age_range fields)
 - `profiles` — User profiles (ZIP, kids ages, interests, distance)
 - `user_event_interactions` — Stars, attending, hidden, reported records
 - `venue_suggestions` — User-submitted venue suggestions (table verified in Supabase)
@@ -72,17 +72,24 @@ CoolKids is a local family events aggregator and community platform for parents 
 - Calendar view of events (monthly grid, attending events pinned to top, prev/next month navigation)
 - My Events calendar/agenda view (attending events blue, starred events amber)
 - 10 new venues seeded (21 total — Scottsdale Farms, Pettit Creek, Mercier Orchards, Sequoyah Library, Chattahoochee Nature Center, Canton Theatre, Elm Street Arts, The Holler, Woodstock Arts + Cherokee Parks URL update)
-- Pricing backfill — all 104 events have cost, cost_min, cost_max, and pricing_notes
+- Pricing backfill — all events have cost, cost_min, cost_max, and pricing_notes
 - Multi-day event deduplication (consecutive-day duplicates merged, e.g. "Apr 4–5")
 - Expandable date ranges on multi-day events (chevron dropdown shows individual dates with per-date "Add to Calendar" buttons; weekends only for long spans)
 - Multi-strategy scraper system (5 strategies: jsonld, ical, rss, html, apify — auto-detection, fallback, scrape_runs logging, preferred_strategy stored per venue)
 - Mobile optimization (hamburger menu, stacked card layout, 44px touch targets, calendar fallback to list on small screens, 16px base font, iOS zoom prevention)
+- Scrape monitoring dashboard at /admin/scraping (strategy scoreboard, venue table with color-coded status, per-venue scrape buttons, inline event editing for event_type and age ranges)
+- Event classification: event_type column ('event' vs 'hours') with smart keyword-based classification + backfill of all existing events (17 classified as hours)
+- Age range extraction: auto-parses age info from event text (named groups like "toddler", numeric ranges like "ages 3-5", "all ages" → 0-99)
+- Age filter dropdown on Events page (Toddler, Preschool, Elementary, Tween/Teen) + "Include hours" toggle
+- Share button on all event cards (native share sheet on mobile via navigator.share, clipboard copy on desktop)
+- My Events un-star and un-attend toggles (star + going buttons on list rows; tap-to-select detail panel in calendar view)
+- My Events calendar multi-day fix (long-span events show weekends only instead of every day)
+- Date column width fix (widened to fit date ranges like "Mar 30 – Apr 14" on one line)
 
 ## What's NOT Built Yet
 - Newsletter (email service, template, personalization, cron)
 - Ratings ("How was it?" after events)
 - Friends/neighbors feature ("Mike's family is going")
-- Share button on events
 - Dad joke share button
 - PWA (Progressive Web App)
 - Deploy custom domain
@@ -126,9 +133,17 @@ CoolKids is a local family events aggregator and community platform for parents 
 - scrape_runs table logs every attempt; venues.preferred_strategy stores the winning strategy
 
 ## Pricing Data Status ✅ COMPLETE
-- All 104 events now have pricing data (cost, cost_min, cost_max, pricing_notes)
+- All events have pricing data (cost, cost_min, cost_max, pricing_notes)
 - FREE events properly flagged with is_free = true
 - Cost filters (Free, Under $10, Under $25) are functional
+
+## Event Classification & Age Data ✅ COMPLETE
+- event_type column: 'event' (default) or 'hours' — classifies venue hours vs real events
+- Backfill complete: 17 events classified as 'hours', hidden by default on Events page
+- Age range extraction: auto-parses from event text (4 events got age ranges populated)
+- Age filter on Events page: Toddler (0-2), Preschool (3-5), Elementary (6-10), Tween/Teen (11+)
+- Overlap logic: events with null ages shown for all age filters (assume for everyone)
+- Admin dashboard at /admin/scraping: inline editing of event_type + age_range_min/max per event
 
 ## Scraping Philosophy
 - Zero results from a venue does NOT mean they have no events
