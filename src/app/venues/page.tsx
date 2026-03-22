@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import type { Venue } from "@/lib/types";
-import { MapPin, Globe, Phone } from "lucide-react";
+import { MapPin, Globe, Phone, Calendar } from "lucide-react";
 import { getCategoryBadgeClasses } from "@/lib/category-colors";
 
 // Venues page — shows all tracked venues in the database
@@ -13,6 +13,20 @@ export default async function VenuesPage() {
     .select("*")
     .eq("is_active", true)
     .order("name", { ascending: true });
+
+  // Count upcoming events per venue
+  const today = new Date().toISOString().split("T")[0];
+  const { data: eventCounts } = await supabase
+    .from("events")
+    .select("venue_id")
+    .gte("start_date", today);
+
+  const venueEventCounts: Record<string, number> = {};
+  eventCounts?.forEach((e) => {
+    if (e.venue_id) {
+      venueEventCounts[e.venue_id] = (venueEventCounts[e.venue_id] || 0) + 1;
+    }
+  });
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -53,7 +67,7 @@ export default async function VenuesPage() {
       {venues && venues.length > 0 && (
         <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {venues.map((venue: Venue) => (
-            <VenueCard key={venue.id} venue={venue} />
+            <VenueCard key={venue.id} venue={venue} eventCount={venueEventCounts[venue.id] || 0} />
           ))}
         </div>
       )}
@@ -62,7 +76,7 @@ export default async function VenuesPage() {
 }
 
 // Individual venue card component
-function VenueCard({ venue }: { venue: Venue }) {
+function VenueCard({ venue, eventCount }: { venue: Venue; eventCount: number }) {
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm hover:shadow-md">
       {/* Category badges */}
@@ -84,6 +98,18 @@ function VenueCard({ venue }: { venue: Venue }) {
           {venue.description}
         </p>
       )}
+
+      {/* Event count badge */}
+      <div className="mt-3 flex items-center gap-1.5 text-sm">
+        <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
+        {eventCount > 0 ? (
+          <span className="font-medium text-[var(--primary)]">
+            {eventCount} upcoming event{eventCount !== 1 ? "s" : ""}
+          </span>
+        ) : (
+          <span className="text-gray-400">No upcoming events</span>
+        )}
+      </div>
 
       {/* Location & contact info */}
       <div className="mt-4 space-y-2 text-sm text-gray-500">
