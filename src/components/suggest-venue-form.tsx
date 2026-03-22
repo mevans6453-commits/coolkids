@@ -199,6 +199,9 @@ export default function SuggestVenueForm() {
         <Send className="h-4 w-4" />
         {submitting ? "Sending..." : "Submit Suggestion"}
       </button>
+      <p className="text-center text-xs text-gray-400">
+        We review suggestions within 48 hours
+      </p>
     </form>
   );
 }

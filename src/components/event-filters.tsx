@@ -47,11 +47,22 @@ export default function EventFilters(props: Props) {
     onClearFilters, resultCount, totalCount, viewMode, onViewModeChange,
   } = props;
 
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+
   const hasFilters = timeFilter !== "all" || costFilter !== "all" || selectedCategories.length > 0 || sortBy !== "date" || ageFilter !== "all" || showHours;
 
-  return (
-    <div className="mt-6 flex flex-wrap items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:overflow-visible sm:pb-0">
-      {/* Dropdowns */}
+  // Count active filters for badge
+  const activeFilterCount = [
+    sortBy !== "date",
+    timeFilter !== "all",
+    costFilter !== "all",
+    selectedCategories.length > 0,
+    ageFilter !== "all",
+    showHours,
+  ].filter(Boolean).length;
+
+  const filterDropdowns = (
+    <>
       <Dropdown
         label="Sort"
         value={sortBy !== "date" ? sortLabel(sortBy) : undefined}
@@ -138,34 +149,103 @@ export default function EventFilters(props: Props) {
           Clear all
         </button>
       )}
+    </>
+  );
 
-      {/* Spacer + results count + view toggle */}
-      <div className="ml-auto flex items-center gap-3">
-        <span className="text-xs text-gray-400">
-          {resultCount} of {totalCount}
-        </span>
-        <div className="flex rounded-lg border border-gray-200">
-          <button
-            onClick={() => onViewModeChange("list")}
-            className={`rounded-l-lg p-1.5 ${viewMode === "list" ? "bg-gray-100 text-gray-700" : "text-gray-400 hover:text-gray-600"}`}
-            title="List view"
-          >
-            <List className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => onViewModeChange("grid")}
-            className={`p-1.5 ${viewMode === "grid" ? "bg-gray-100 text-gray-700" : "text-gray-400 hover:text-gray-600"}`}
-            title="Grid view"
-          >
-            <LayoutGrid className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => onViewModeChange("calendar")}
-            className={`rounded-r-lg p-1.5 ${viewMode === "calendar" ? "bg-gray-100 text-gray-700" : "text-gray-400 hover:text-gray-600"}`}
-            title="Calendar view"
-          >
-            <CalendarDays className="h-4 w-4" />
-          </button>
+  return (
+    <div className="mt-6">
+      {/* Mobile: single "Filters" button */}
+      <div className="flex items-center gap-2 sm:hidden">
+        <button
+          onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
+          className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+            activeFilterCount > 0
+              ? "border-[var(--primary)] bg-blue-50 text-[var(--primary)]"
+              : "border-gray-200 text-gray-600 hover:bg-gray-50"
+          }`}
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          Filters
+          {activeFilterCount > 0 && (
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--primary)] text-[10px] font-bold text-white">
+              {activeFilterCount}
+            </span>
+          )}
+          <ChevronDown className={`h-3 w-3 transition-transform ${mobileFiltersOpen ? "rotate-180" : ""}`} />
+        </button>
+
+        {/* Results count + view toggle always visible on mobile */}
+        <div className="ml-auto flex items-center gap-3">
+          <span className="text-xs text-gray-400">
+            {resultCount} of {totalCount}
+          </span>
+          <div className="flex rounded-lg border border-gray-200">
+            <button
+              onClick={() => onViewModeChange("list")}
+              className={`rounded-l-lg p-1.5 ${viewMode === "list" ? "bg-gray-100 text-gray-700" : "text-gray-400 hover:text-gray-600"}`}
+              title="List view"
+            >
+              <List className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => onViewModeChange("grid")}
+              className={`p-1.5 ${viewMode === "grid" ? "bg-gray-100 text-gray-700" : "text-gray-400 hover:text-gray-600"}`}
+              title="Grid view"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => onViewModeChange("calendar")}
+              className={`rounded-r-lg p-1.5 ${viewMode === "calendar" ? "bg-gray-100 text-gray-700" : "text-gray-400 hover:text-gray-600"}`}
+              title="Calendar view"
+            >
+              <CalendarDays className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile expanded filters */}
+      {mobileFiltersOpen && (
+        <div className="mt-2 flex flex-wrap items-center gap-2 sm:hidden">
+          {filterDropdowns}
+        </div>
+      )}
+
+      {/* Desktop: show filters inline (unchanged) */}
+      <div className="hidden sm:flex flex-wrap items-center gap-2">
+        {filterDropdowns}
+
+        {/* Spacer + results count + view toggle */}
+        <div className="ml-auto flex items-center gap-3">
+          <span className="text-xs text-gray-400">
+            {resultCount} of {totalCount}
+          </span>
+          <div className="flex rounded-lg border border-gray-200">
+            <button
+              onClick={() => onViewModeChange("list")}
+              className={`rounded-l-lg p-1.5 ${viewMode === "list" ? "bg-gray-100 text-gray-700" : "text-gray-400 hover:text-gray-600"}`}
+              title="List view"
+            >
+              <List className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => onViewModeChange("grid")}
+              className={`p-1.5 ${viewMode === "grid" ? "bg-gray-100 text-gray-700" : "text-gray-400 hover:text-gray-600"}`}
+              title="Grid view"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => onViewModeChange("calendar")}
+              className={`rounded-r-lg p-1.5 ${viewMode === "calendar" ? "bg-gray-100 text-gray-700" : "text-gray-400 hover:text-gray-600"}`}
+              title="Calendar view"
+            >
+              <CalendarDays className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

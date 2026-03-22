@@ -197,7 +197,7 @@ export default function EventsClient({ events, interactionCounts }: Props) {
             <EventCalendar events={filtered.events} interactionCounts={interactionCounts} />
           </div>
           <div className="sm:hidden mt-4">
-            <p className="mb-3 text-xs text-gray-400 text-center">Calendar view is available on larger screens</p>
+            <p className="mb-3 text-xs text-gray-400 text-center">📅 Switch to desktop for the full calendar view</p>
             <div className="space-y-2">
               {filtered.events.map((event) => (
                 <EventCard
