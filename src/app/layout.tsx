@@ -45,15 +45,71 @@ export default function RootLayout({
         <main>{children}</main>
 
         {/* Footer */}
-        <footer className="border-t border-[var(--border)] bg-gray-50 py-8">
-          <div className="mx-auto max-w-6xl px-4 text-center text-sm text-gray-500">
-            <p>CoolKids — Family events in Cherokee County & North Georgia</p>
-            <p className="mt-2">
-              <a href="/suggest" className="text-[var(--primary)] hover:underline">
-                Suggest a Venue
-              </a>
-            </p>
-            <p className="mt-1">Open source project • Built with ❤️ for local families</p>
+        <footer className="border-t border-[var(--border)] bg-gray-50 py-10">
+          <div className="mx-auto max-w-6xl px-4">
+            <div className="grid gap-8 sm:grid-cols-3">
+              {/* Explore */}
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-900">
+                  Explore
+                </h3>
+                <ul className="mt-3 space-y-2 text-sm text-gray-600">
+                  <li>
+                    <a href="/events" className="hover:text-[var(--primary)]">
+                      Events
+                    </a>
+                  </li>
+                  <li>
+                    <a href="/venues" className="hover:text-[var(--primary)]">
+                      Venues
+                    </a>
+                  </li>
+                </ul>
+              </div>
+              {/* Community */}
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-900">
+                  Community
+                </h3>
+                <ul className="mt-3 space-y-2 text-sm text-gray-600">
+                  <li>
+                    <a href="/suggest" className="hover:text-[var(--primary)]">
+                      Suggest a Venue
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="/subscribe"
+                      className="hover:text-[var(--primary)]"
+                    >
+                      Newsletter
+                    </a>
+                  </li>
+                </ul>
+              </div>
+              {/* About */}
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-900">
+                  About
+                </h3>
+                <ul className="mt-3 space-y-2 text-sm text-gray-600">
+                  <li>
+                    <a
+                      href="https://github.com/mevans6453-commits/coolkids"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-[var(--primary)]"
+                    >
+                      Open Source on GitHub
+                    </a>
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div className="mt-8 border-t border-gray-200 pt-6 text-center text-sm text-gray-500">
+              <p>CoolKids — Family events in Cherokee County & North Georgia</p>
+              <p className="mt-1">Built with ❤️ for local families</p>
+            </div>
           </div>
         </footer>
       </body>

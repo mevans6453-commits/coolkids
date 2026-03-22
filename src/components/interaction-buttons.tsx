@@ -91,7 +91,7 @@ export default function InteractionButtons({
         className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors min-h-[44px] sm:min-h-0 sm:py-1.5 ${
           starred
             ? "bg-amber-100 text-amber-700"
-            : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+            : "bg-amber-50 text-amber-600 hover:bg-amber-100"
         }`}
       >
         <Star className={`h-4 w-4 sm:h-3.5 sm:w-3.5 ${starred ? "fill-amber-500" : ""}`} />
@@ -102,7 +102,7 @@ export default function InteractionButtons({
         className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors min-h-[44px] sm:min-h-0 sm:py-1.5 ${
           attending
             ? "bg-blue-100 text-blue-700"
-            : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+            : "bg-blue-50 text-blue-600 hover:bg-blue-100"
         }`}
       >
         <Hand className={`h-4 w-4 sm:h-3.5 sm:w-3.5 ${attending ? "fill-blue-500" : ""}`} />
