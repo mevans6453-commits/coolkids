@@ -1,5 +1,5 @@
 import type { Event } from "@/lib/types";
-import { Calendar, MapPin, DollarSign, Users } from "lucide-react";
+import { Calendar, MapPin, DollarSign, Users, ExternalLink } from "lucide-react";
 import { formatDateRange } from "@/lib/event-utils";
 import { decodeHtmlEntities } from "@/lib/html-utils";
 import { getCategoryBadgeClasses } from "@/lib/category-colors";
@@ -83,6 +83,20 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
               )}
             </div>
 
+            {/* More Info link — source URL or venue website fallback */}
+            {(event.source_url || event.venue?.website) && (
+              <a
+                href={event.source_url || event.venue?.website || "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-[var(--primary)] hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <ExternalLink className="h-3 w-3" />
+                More Info →
+              </a>
+            )}
+
             {/* Interaction buttons — mobile: below content, full width */}
             <div className="mt-2 flex items-center gap-2 sm:hidden">
               <InteractionButtons eventId={event.id} initialStarCount={starCount} initialAttendingCount={attendingCount} />
@@ -165,10 +179,12 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
           )}
         </div>
 
-        {event.source_url && (
-          <a href={event.source_url} target="_blank" rel="noopener noreferrer"
-            className="mt-4 inline-block text-sm font-medium text-blue-600 hover:text-blue-800">
-            View on venue site →
+        {(event.source_url || event.venue?.website) && (
+          <a href={event.source_url || event.venue?.website || "#"} target="_blank" rel="noopener noreferrer"
+            className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[var(--primary)] hover:underline"
+            onClick={(e) => e.stopPropagation()}>
+            <ExternalLink className="h-3.5 w-3.5" />
+            More Info →
           </a>
         )}
       </div>

@@ -20,6 +20,7 @@ export default function InteractionButtons({
   const supabase = createClient();
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const [authLoaded, setAuthLoaded] = useState(false);
   const [starred, setStarred] = useState(false);
   const [attending, setAttending] = useState(false);
   const [starCount, setStarCount] = useState(initialStarCount);
@@ -41,11 +42,18 @@ export default function InteractionButtons({
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user);
+      setAuthLoaded(true);
       if (user) loadUserInteractions(user.id);
     });
   }, [supabase, loadUserInteractions]);
 
-  async function toggle(type: "star" | "attending") {
+  async function toggle(type: "star" | "attending", e: React.MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+
+    // Don't do anything until auth has loaded
+    if (!authLoaded) return;
+
     if (!user) {
       router.push("/subscribe");
       return;
@@ -87,7 +95,7 @@ export default function InteractionButtons({
   return (
     <div className="flex gap-2">
       <button
-        onClick={() => toggle("star")}
+        onClick={(e) => toggle("star", e)}
         className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors min-h-[44px] sm:min-h-0 sm:py-1.5 ${
           starred
             ? "bg-amber-100 text-amber-700"
@@ -98,7 +106,7 @@ export default function InteractionButtons({
         {starCount > 0 ? starCount : "Star"}
       </button>
       <button
-        onClick={() => toggle("attending")}
+        onClick={(e) => toggle("attending", e)}
         className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors min-h-[44px] sm:min-h-0 sm:py-1.5 ${
           attending
             ? "bg-blue-100 text-blue-700"
@@ -111,3 +119,4 @@ export default function InteractionButtons({
     </div>
   );
 }
+
