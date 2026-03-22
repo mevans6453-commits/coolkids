@@ -158,10 +158,10 @@ function extractTimeElements(html: string): TimeElement[] {
 
 type HtmlSection = { heading: string; html: string; text: string; position: number };
 
-/** Split HTML into sections by heading tags (h1-h4) */
+/** Split HTML into sections by heading tags (h1-h3 only — h4 is absorbed into sections) */
 function extractHtmlSections(html: string): HtmlSection[] {
   const sections: HtmlSection[] = [];
-  const headingRegex = /<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/gi;
+  const headingRegex = /<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi;
   const headings: { text: string; index: number }[] = [];
 
   let match;

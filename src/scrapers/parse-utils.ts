@@ -16,6 +16,11 @@ export function isNonEventHeading(name: string): boolean {
     return false;
   }
 
+  // If heading looks like a time range (e.g. "10 AM – 12 PM", "9:30 AM"), skip it
+  if (/^\d{1,2}(:\d{2})?\s*(am|pm)/i.test(name.trim())) {
+    return true;
+  }
+
   const skipPatterns = [
     /become a member/i,
     /get your tickets/i,
