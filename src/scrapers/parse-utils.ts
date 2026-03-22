@@ -426,6 +426,185 @@ export function parseEventsFromMarkdown(
 }
 
 // -----------------------------------------------
+// Event validation & filtering (pre-save gate)
+// -----------------------------------------------
+
+export type ValidationResult = {
+  valid: ScrapedEvent[];
+  rejected: { event: ScrapedEvent; reason: string }[];
+  consolidated: ScrapedEvent[]; // daily attractions merged into one "hours" entry
+};
+
+/**
+ * Validate and filter scraped events before saving to the database.
+ * Rejects junk, past events, cancellations. Consolidates daily-repeat
+ * attractions into single "hours" entries with date ranges.
+ */
+export function validateScrapedEvents(
+  events: ScrapedEvent[],
+  venueName: string
+): ValidationResult {
+  const today = new Date().toISOString().split("T")[0];
+  const valid: ScrapedEvent[] = [];
+  const rejected: { event: ScrapedEvent; reason: string }[] = [];
+
+  // ---- Pass 1: Individual event validation ----
+  const passedIndividual: ScrapedEvent[] = [];
+
+  for (const e of events) {
+    const name = (e.name || "").trim();
+    const lower = name.toLowerCase();
+    const desc = (e.description || "").toLowerCase();
+    const combined = `${lower} ${desc}`;
+
+    // 1. Name too short or empty
+    if (name.length < 5) {
+      rejected.push({ event: e, reason: `Name too short: "${name}"` });
+      continue;
+    }
+
+    // 2. Name is really a date ("Saturday, March 14, 2026", "April 1st", "December 2020")
+    if (/^(monday|tuesday|wednesday|thursday|friday|saturday|sunday),?\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(lower)) {
+      rejected.push({ event: e, reason: `Date scraped as name: "${name}"` });
+      continue;
+    }
+    if (/^(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(st|nd|rd|th)?\s*,?\s*\d{0,4}$/i.test(lower.trim())) {
+      rejected.push({ event: e, reason: `Date scraped as name: "${name}"` });
+      continue;
+    }
+
+    // 3. Name is really a time ("10:30AM 12PM", "10 AM 12 PM")
+    if (/^\d{1,2}(:\d{2})?\s*(am|pm)/i.test(lower)) {
+      rejected.push({ event: e, reason: `Time scraped as name: "${name}"` });
+      continue;
+    }
+
+    // 4. Name is a page title / navigation element
+    const pageTitlePatterns = [
+      /^events?\s*calendar$/i, /^upcoming\s*events$/i, /^what.s\s*happening/i,
+      /^shows?\s*and\s*screenings$/i, /^calendar\s*of\s*events$/i,
+      /^annual\s*report/i, /^about\s*(us)?$/i, /^contact(\s*us)?$/i,
+      /^directions$/i, /^faq$/i, /^gift\s*(shop|card)/i, /^membership/i,
+      /^privacy/i, /^terms/i, /^menu$/i, /^donate$/i, /^volunteer$/i,
+      /^careers$/i, /^jobs$/i, /^newsletter$/i, /^sign\s*up$/i,
+    ];
+    if (pageTitlePatterns.some((p) => p.test(lower))) {
+      rejected.push({ event: e, reason: `Page title/nav: "${name}"` });
+      continue;
+    }
+
+    // 5. Name is a location/city (single word or very short with no event-like words)
+    const cityNames = ["atlanta", "gainesville", "roswell", "canton", "woodstock", "alpharetta", "marietta", "kennesaw"];
+    if (cityNames.includes(lower.trim())) {
+      rejected.push({ event: e, reason: `City name as event: "${name}"` });
+      continue;
+    }
+
+    // 6. Canceled events
+    if (/\b(cancell?ed|postponed indefinitely)\b/i.test(combined)) {
+      rejected.push({ event: e, reason: `Canceled: "${name}"` });
+      continue;
+    }
+
+    // 7. Closures (museum closed, park closed, etc.)
+    if (/\b(museum|park|center|facility)?\s*closed/i.test(lower) || /closing\s*early/i.test(lower)) {
+      rejected.push({ event: e, reason: `Closure notice: "${name}"` });
+      continue;
+    }
+
+    // 8. Past events
+    const endCheck = e.end_date || e.start_date;
+    if (endCheck && endCheck < today) {
+      rejected.push({ event: e, reason: `Past event: ends ${endCheck}` });
+      continue;
+    }
+
+    // 9. Junk description content (reviews, phone numbers as content, HTML calendar markup)
+    if (desc.length > 0 && desc.length < 15 && /^\d{3}[-.]?\d{3}[-.]?\d{4}$/.test(desc.trim())) {
+      rejected.push({ event: e, reason: `Phone number as description: "${name}"` });
+      continue;
+    }
+
+    // 10. Decode HTML entities in name and description
+    e.name = decodeHtmlEntities(name);
+    e.description = e.description ? decodeHtmlEntities(e.description) : null;
+
+    passedIndividual.push(e);
+  }
+
+  // ---- Pass 2: Detect daily-repeat attractions ----
+  // Group by name, count how many distinct dates per name
+  const nameGroups = new Map<string, ScrapedEvent[]>();
+  for (const e of passedIndividual) {
+    const key = e.name;
+    if (!nameGroups.has(key)) nameGroups.set(key, []);
+    nameGroups.get(key)!.push(e);
+  }
+
+  const consolidated: ScrapedEvent[] = [];
+  for (const [name, group] of nameGroups) {
+    if (group.length >= 5) {
+      // 5+ instances = almost certainly a daily attraction/ride, not a real event
+      // Consolidate into one "hours" entry with the full date range
+      const sorted = [...group].sort((a, b) => a.start_date.localeCompare(b.start_date));
+      const merged: ScrapedEvent = {
+        ...sorted[0],
+        end_date: sorted[sorted.length - 1].end_date || sorted[sorted.length - 1].start_date,
+        event_type: "hours",
+      };
+      consolidated.push(merged);
+      // Add all but the first to rejected
+      for (let i = 1; i < sorted.length; i++) {
+        rejected.push({ event: sorted[i], reason: `Daily attraction consolidated (${group.length} instances): "${name}"` });
+      }
+      // The first one goes to valid as the consolidated entry
+      valid.push(merged);
+    } else {
+      // Normal events — pass through
+      valid.push(...group);
+    }
+  }
+
+  // ---- Pass 3: Deduplicate within batch (same name + same date) ----
+  const seen = new Set<string>();
+  const deduped: ScrapedEvent[] = [];
+  for (const e of valid) {
+    const key = `${e.name}|${e.start_date}`;
+    if (seen.has(key)) {
+      rejected.push({ event: e, reason: `Duplicate in batch: "${e.name}" on ${e.start_date}` });
+      continue;
+    }
+    seen.add(key);
+    deduped.push(e);
+  }
+
+  return {
+    valid: deduped,
+    rejected,
+    consolidated,
+  };
+}
+
+/** Decode common HTML entities */
+function decodeHtmlEntities(str: string): string {
+  return str
+    .replace(/&#038;/g, "&").replace(/&amp;/g, "&")
+    .replace(/&#8211;/g, "\u2013").replace(/&ndash;/g, "\u2013")
+    .replace(/&#8212;/g, "\u2014").replace(/&mdash;/g, "\u2014")
+    .replace(/&#8216;/g, "\u2018").replace(/&lsquo;/g, "\u2018")
+    .replace(/&#8217;/g, "\u2019").replace(/&rsquo;/g, "\u2019")
+    .replace(/&#8220;/g, "\u201C").replace(/&ldquo;/g, "\u201C")
+    .replace(/&#8221;/g, "\u201D").replace(/&rdquo;/g, "\u201D")
+    .replace(/&#8230;/g, "\u2026").replace(/&hellip;/g, "\u2026")
+    .replace(/&#039;/g, "'").replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/<[^>]+>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// -----------------------------------------------
 // Date formatting helper
 // -----------------------------------------------
 

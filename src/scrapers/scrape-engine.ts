@@ -14,6 +14,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { ScrapedEvent, VenueConfig } from "./base-scraper";
 import { ALL_STRATEGIES, getStrategy } from "./strategies";
 import { getAllVenueConfigs } from "./venues";
+import { validateScrapedEvents } from "./parse-utils";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -38,6 +39,7 @@ export type VenueScrapeResult = {
   strategy_used: string | null;
   events_found: number;
   events_saved: number;
+  events_raw: number;
   error: string | null;
   attempts: StrategyAttempt[];
 };
@@ -229,10 +231,28 @@ async function scrapeVenue(
     }
   }
 
-  // Step 3: Save events if we found any
+  // Step 3: Validate, filter, then save
   let eventsSaved = 0;
+  let eventsFound = winningEvents.length;
   if (winningEvents.length > 0) {
-    eventsSaved = await saveEvents(config.venue_id, winningEvents);
+    // Smart validation: reject junk, past, closures; consolidate daily attractions
+    const validation = validateScrapedEvents(winningEvents, config.venue_name);
+
+    console.log(`[Engine]   Validation: ${winningEvents.length} raw → ${validation.valid.length} valid, ${validation.rejected.length} rejected`);
+    if (validation.consolidated.length > 0) {
+      console.log(`[Engine]   Consolidated ${validation.consolidated.length} daily attractions into hours entries`);
+    }
+    for (const r of validation.rejected.slice(0, 5)) {
+      console.log(`[Engine]     Rejected: ${r.reason}`);
+    }
+    if (validation.rejected.length > 5) {
+      console.log(`[Engine]     ... and ${validation.rejected.length - 5} more`);
+    }
+
+    eventsFound = validation.valid.length;
+    if (validation.valid.length > 0) {
+      eventsSaved = await saveEvents(config.venue_id, validation.valid);
+    }
 
     // Update preferred_strategy if it changed
     if (winningStrategy && winningStrategy !== config.preferred_strategy) {
@@ -241,8 +261,7 @@ async function scrapeVenue(
     }
   }
 
-  const eventsFound = winningEvents.length;
-  console.log(`[Engine]   Result: ${eventsFound} events found, ${eventsSaved} saved (strategy: ${winningStrategy || "none"})`);
+  console.log(`[Engine]   Result: ${winningEvents.length} raw → ${eventsFound} valid → ${eventsSaved} saved (strategy: ${winningStrategy || "none"})`);
 
   return {
     venue_id: config.venue_id,
@@ -250,6 +269,7 @@ async function scrapeVenue(
     strategy_used: winningStrategy,
     events_found: eventsFound,
     events_saved: eventsSaved,
+    events_raw: winningEvents.length,
     error: eventsFound === 0
       ? (attempts.find((a) => a.error_message)?.error_message || "No events found with any strategy")
       : null,
