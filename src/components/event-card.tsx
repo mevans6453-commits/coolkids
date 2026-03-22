@@ -1,6 +1,7 @@
 import type { Event } from "@/lib/types";
 import { Calendar, MapPin, DollarSign, Users } from "lucide-react";
 import { formatDateRange } from "@/lib/event-utils";
+import { decodeHtmlEntities } from "@/lib/html-utils";
 import ExpandableDateRange from "./expandable-date-range";
 import InteractionButtons from "./interaction-buttons";
 import EventActions from "./event-actions";
@@ -21,8 +22,9 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
   );
 
   if (view === "list") {
-    const desc = event.description
-      ? event.description.length > 100 ? event.description.slice(0, 100) + "..." : event.description
+    const rawDesc = event.description ? decodeHtmlEntities(event.description) : null;
+    const desc = rawDesc
+      ? rawDesc.length > 100 ? rawDesc.slice(0, 100) + "..." : rawDesc
       : null;
 
     return (
@@ -40,7 +42,7 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
           <div className="min-w-0 flex-1">
             {/* Name + category tags */}
             <div className="flex flex-wrap items-baseline gap-1.5">
-              <h3 className="text-base font-semibold text-gray-900">{event.name}</h3>
+              <h3 className="text-base font-semibold text-gray-900">{decodeHtmlEntities(event.name)}</h3>
               <div className="flex flex-wrap gap-1">
                 {event.categories?.slice(0, 3).map((cat) => (
                   <span key={cat} className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
@@ -117,10 +119,10 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
       </div>
 
       <div className="flex flex-1 flex-col px-5 pb-5 pt-3">
-        <h3 className="text-lg font-semibold text-gray-900">{event.name}</h3>
+        <h3 className="text-lg font-semibold text-gray-900">{decodeHtmlEntities(event.name)}</h3>
 
         {event.description && (
-          <p className="mt-1 line-clamp-2 text-sm text-gray-600">{event.description}</p>
+          <p className="mt-1 line-clamp-2 text-sm text-gray-600">{decodeHtmlEntities(event.description)}</p>
         )}
 
         <div className="mt-auto space-y-2 pt-4 text-sm text-gray-500">

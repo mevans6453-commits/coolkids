@@ -61,7 +61,7 @@ export default async function HomePage() {
           <FeatureCard
             icon={<MapPin className="h-8 w-8 text-blue-600" />}
             title="Local Venues"
-            description="We track 90+ family-friendly venues across Cherokee County and North Georgia."
+            description="We track 20+ family-friendly venues across Cherokee County and North Georgia."
           />
           <FeatureCard
             icon={<Calendar className="h-8 w-8 text-blue-600" />}
