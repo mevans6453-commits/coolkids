@@ -251,7 +251,7 @@ export function extractDescription(section: string): string | null {
   return textLines.length > 0 ? textLines[0].slice(0, 300) : null;
 }
 
-/** Strip HTML tags from text */
+/** Strip HTML tags from text, preserving decoded entities */
 export function stripHtml(html: string): string {
   return html
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
@@ -259,8 +259,23 @@ export function stripHtml(html: string): string {
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
+    .replace(/&#038;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&#8217;/g, "\u2019")
+    .replace(/&rsquo;/g, "\u2019")
+    .replace(/&#8216;/g, "\u2018")
+    .replace(/&lsquo;/g, "\u2018")
+    .replace(/&#8211;/g, "\u2013")
+    .replace(/&ndash;/g, "\u2013")
+    .replace(/&#8212;/g, "\u2014")
+    .replace(/&mdash;/g, "\u2014")
+    .replace(/&#8220;/g, "\u201C")
+    .replace(/&#8221;/g, "\u201D")
+    .replace(/&#8230;/g, "\u2026")
     .replace(/&#?\w+;/g, " ")
     .replace(/\s+/g, " ")
     .trim();

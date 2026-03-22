@@ -249,6 +249,23 @@ async function scrapeVenue(
       console.log(`[Engine]     ... and ${validation.rejected.length - 5} more`);
     }
 
+    // Delete individual-day entries for consolidated attractions
+    // (prevents both "hours" and per-day "event" entries existing for same name)
+    if (validation.consolidated.length > 0) {
+      for (const c of validation.consolidated) {
+        const { error } = await supabase
+          .from("events")
+          .delete()
+          .eq("venue_id", config.venue_id)
+          .eq("name", c.name)
+          .neq("event_type", "hours");
+
+        if (!error) {
+          console.log(`[Engine]   Cleaned up individual entries for consolidated: "${c.name}"`);
+        }
+      }
+    }
+
     eventsFound = validation.valid.length;
     if (validation.valid.length > 0) {
       eventsSaved = await saveEvents(config.venue_id, validation.valid);
@@ -369,6 +386,10 @@ async function saveEvents(venueId: string, events: ScrapedEvent[]): Promise<numb
   let saved = 0;
 
   for (const event of events) {
+    // Default pricing fallback: if no pricing data at all, add a helpful note
+    if (!event.cost && !event.is_free && event.cost_min === null && event.cost_max === null && !event.pricing_notes) {
+      event.pricing_notes = "Check venue website for pricing";
+    }
     const { data: existing } = await supabase
       .from("events")
       .select("id")
