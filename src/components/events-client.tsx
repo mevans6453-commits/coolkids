@@ -4,9 +4,11 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Event, AgeFilter } from "@/lib/types";
 import { AGE_FILTER_RANGES } from "@/lib/types";
+import { ChevronDown } from "lucide-react";
+import { getCategoryBadgeClasses } from "@/lib/category-colors";
 import EventCard from "./event-card";
 import EventCalendar from "./event-calendar";
-import EventFilters, { type SortOption, type TimeFilter, type CostFilter, type ViewMode } from "./event-filters";
+import EventFilters, { type SortOption, type TimeFilter, type CostFilter, type ViewMode, type GroupBy } from "./event-filters";
 import { mergeConsecutiveEvents } from "@/lib/event-utils";
 
 type Props = {
@@ -24,6 +26,8 @@ export default function EventsClient({ events, interactionCounts }: Props) {
   const [ageFilter, setAgeFilter] = useState<AgeFilter>("all");
   const [showHours, setShowHours] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [groupBy, setGroupBy] = useState<GroupBy>("none");
+  const [expandedVenues, setExpandedVenues] = useState<Set<string>>(new Set());
 
   // Load user's hidden events on mount
   useEffect(() => {
@@ -57,6 +61,16 @@ export default function EventsClient({ events, interactionCounts }: Props) {
     setSelectedCategories([]);
     setAgeFilter("all");
     setShowHours(false);
+    setGroupBy("none");
+  }
+
+  function toggleVenueExpanded(venueId: string) {
+    setExpandedVenues((prev) => {
+      const next = new Set(prev);
+      if (next.has(venueId)) next.delete(venueId);
+      else next.add(venueId);
+      return next;
+    });
   }
 
   // Filter + sort pipeline
@@ -161,6 +175,110 @@ export default function EventsClient({ events, interactionCounts }: Props) {
     return { events: result, totalAfterHidden };
   }, [events, hiddenIds, timeFilter, costFilter, selectedCategories, ageFilter, showHours, sortBy, interactionCounts]);
 
+  // Group events by category or venue
+  const grouped = useMemo(() => {
+    if (groupBy === "none") return null;
+
+    if (groupBy === "category") {
+      const map = new Map<string, Event[]>();
+      for (const event of filtered.events) {
+        const cats = event.categories?.length ? event.categories : ["Other"];
+        for (const cat of cats) {
+          if (!map.has(cat)) map.set(cat, []);
+          map.get(cat)!.push(event);
+        }
+      }
+      // Sort category groups alphabetically
+      return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+    }
+
+    if (groupBy === "venue") {
+      const map = new Map<string, { name: string; events: Event[] }>();
+      for (const event of filtered.events) {
+        const venueId = event.venue_id;
+        const venueName = event.venue?.name ?? "Unknown Venue";
+        if (!map.has(venueId)) map.set(venueId, { name: venueName, events: [] });
+        map.get(venueId)!.events.push(event);
+      }
+      // Sort venue groups alphabetically
+      return Array.from(map.entries()).sort(([, a], [, b]) => a.name.localeCompare(b.name));
+    }
+
+    return null;
+  }, [filtered.events, groupBy]);
+
+  // Render a flat list of event cards
+  function renderEventList(evts: Event[], view: "list" | "grid") {
+    return evts.map((event) => (
+      <EventCard
+        key={event.id}
+        event={event}
+        starCount={interactionCounts[event.id]?.stars ?? 0}
+        attendingCount={interactionCounts[event.id]?.attending ?? 0}
+        onHide={handleHide}
+        view={view}
+      />
+    ));
+  }
+
+  // Render grouped content
+  function renderGrouped(view: "list" | "grid") {
+    if (!grouped) return null;
+
+    if (groupBy === "category") {
+      return (
+        <div className="mt-6 space-y-8">
+          {(grouped as [string, Event[]][]).map(([category, evts]) => (
+            <div key={category}>
+              <div className="flex items-center gap-2 mb-3 sticky top-0 bg-[var(--background)] py-2 z-10">
+                <span className={`rounded-full px-3 py-1 text-sm font-semibold ${getCategoryBadgeClasses(category)}`}>
+                  {category}
+                </span>
+                <span className="text-xs text-gray-400">{evts.length} event{evts.length !== 1 ? "s" : ""}</span>
+              </div>
+              <div className={view === "grid" ? "grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "space-y-2"}>
+                {renderEventList(evts, view)}
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    if (groupBy === "venue") {
+      return (
+        <div className="mt-6 space-y-2">
+          {(grouped as [string, { name: string; events: Event[] }][]).map(([venueId, { name, events: evts }]) => {
+            const isExpanded = expandedVenues.has(venueId);
+            return (
+              <div key={venueId} className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+                <button
+                  onClick={() => toggleVenueExpanded(venueId)}
+                  className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-semibold text-gray-900">{name}</h3>
+                    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                      {evts.length} event{evts.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                </button>
+                {isExpanded && (
+                  <div className={`border-t border-gray-100 p-3 ${view === "grid" ? "grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "space-y-2"}`}>
+                    {renderEventList(evts, view)}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    return null;
+  }
+
   return (
     <>
       <EventFilters
@@ -176,6 +294,8 @@ export default function EventsClient({ events, interactionCounts }: Props) {
         onAgeFilterChange={setAgeFilter}
         showHours={showHours}
         onShowHoursChange={setShowHours}
+        groupBy={groupBy}
+        onGroupByChange={setGroupBy}
         onClearFilters={clearFilters}
         resultCount={filtered.events.length}
         totalCount={filtered.totalAfterHidden}
@@ -212,6 +332,8 @@ export default function EventsClient({ events, interactionCounts }: Props) {
             </div>
           </div>
         </>
+      ) : groupBy !== "none" ? (
+        renderGrouped(viewMode === "grid" ? "grid" : "list")
       ) : (
         <div className={viewMode === "grid" ? "mt-6 grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "mt-6 space-y-2"}>
           {filtered.events.map((event) => (

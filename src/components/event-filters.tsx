@@ -8,6 +8,7 @@ export type SortOption = "date" | "venue" | "trending" | "recent";
 export type TimeFilter = "all" | "this-week" | "this-weekend" | "this-month" | "next-month";
 export type CostFilter = "all" | "free" | "under10" | "under25";
 export type ViewMode = "list" | "grid" | "calendar";
+export type GroupBy = "none" | "category" | "venue";
 
 type Props = {
   sortBy: SortOption;
@@ -22,6 +23,8 @@ type Props = {
   onAgeFilterChange: (f: AgeFilter) => void;
   showHours: boolean;
   onShowHoursChange: (show: boolean) => void;
+  groupBy: GroupBy;
+  onGroupByChange: (g: GroupBy) => void;
   onClearFilters: () => void;
   resultCount: number;
   totalCount: number;
@@ -33,23 +36,26 @@ const SORT_OPTIONS: [SortOption, string][] = [["date", "Date"], ["venue", "Venue
 const TIME_OPTIONS: [TimeFilter, string][] = [["all", "All"], ["this-week", "This Week"], ["this-weekend", "This Weekend"], ["this-month", "This Month"], ["next-month", "Next Month"]];
 const COST_OPTIONS: [CostFilter, string][] = [["all", "All"], ["free", "Free"], ["under10", "Under $10"], ["under25", "Under $25"]];
 const AGE_OPTIONS: [AgeFilter, string][] = [["all", "All Ages"], ["toddler", "Toddler (0-2)"], ["preschool", "Preschool (3-5)"], ["elementary", "Elementary (6-10)"], ["tween-teen", "Tween/Teen (11+)"]];
+const GROUP_OPTIONS: [GroupBy, string][] = [["none", "None (Date)"], ["category", "Category"], ["venue", "Venue"]];
 
 function sortLabel(v: SortOption) { return SORT_OPTIONS.find(([k]) => k === v)?.[1] ?? "Date"; }
 function timeLabel(v: TimeFilter) { return TIME_OPTIONS.find(([k]) => k === v)?.[1] ?? "All"; }
 function costLabel(v: CostFilter) { return COST_OPTIONS.find(([k]) => k === v)?.[1] ?? "All"; }
 function ageLabel(v: AgeFilter) { return AGE_OPTIONS.find(([k]) => k === v)?.[1] ?? "All Ages"; }
+function groupLabel(v: GroupBy) { return GROUP_OPTIONS.find(([k]) => k === v)?.[1] ?? "None"; }
 
 export default function EventFilters(props: Props) {
   const {
     sortBy, onSortChange, timeFilter, onTimeFilterChange,
     costFilter, onCostFilterChange, selectedCategories, onCategoryToggle,
     ageFilter, onAgeFilterChange, showHours, onShowHoursChange,
+    groupBy, onGroupByChange,
     onClearFilters, resultCount, totalCount, viewMode, onViewModeChange,
   } = props;
 
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
-  const hasFilters = timeFilter !== "all" || costFilter !== "all" || selectedCategories.length > 0 || sortBy !== "date" || ageFilter !== "all" || showHours;
+  const hasFilters = timeFilter !== "all" || costFilter !== "all" || selectedCategories.length > 0 || sortBy !== "date" || ageFilter !== "all" || showHours || groupBy !== "none";
 
   // Count active filters for badge
   const activeFilterCount = [
@@ -59,6 +65,7 @@ export default function EventFilters(props: Props) {
     selectedCategories.length > 0,
     ageFilter !== "all",
     showHours,
+    groupBy !== "none",
   ].filter(Boolean).length;
 
   const filterDropdowns = (
@@ -71,6 +78,19 @@ export default function EventFilters(props: Props) {
         {SORT_OPTIONS.map(([val, label]) => (
           <button key={val} onClick={() => onSortChange(val)}
             className={`block w-full px-4 py-2 text-left text-sm ${sortBy === val ? "bg-blue-50 font-medium text-[var(--primary)]" : "text-gray-700 hover:bg-gray-50"}`}>
+            {label}
+          </button>
+        ))}
+      </Dropdown>
+
+      <Dropdown
+        label="Group"
+        value={groupBy !== "none" ? groupLabel(groupBy) : undefined}
+        onClear={groupBy !== "none" ? () => onGroupByChange("none") : undefined}
+      >
+        {GROUP_OPTIONS.map(([val, label]) => (
+          <button key={val} onClick={() => onGroupByChange(val)}
+            className={`block w-full px-4 py-2 text-left text-sm ${groupBy === val ? "bg-blue-50 font-medium text-[var(--primary)]" : "text-gray-700 hover:bg-gray-50"}`}>
             {label}
           </button>
         ))}
