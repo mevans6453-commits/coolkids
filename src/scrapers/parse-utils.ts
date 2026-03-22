@@ -563,10 +563,17 @@ export function validateScrapedEvents(
     nameGroups.get(key)!.push(e);
   }
 
+  // Event keywords that should NEVER be consolidated into hours
+  // (festivals, shows, concerts etc. that legitimately run on multiple days)
+  const realEventPattern = /\b(festival|fest|show|concert|performance|gala|fundraiser|run|race|5k|parade|egg.hunt|trick.or.treat|fireworks|celebration|fair|expo|tournament|camp|workshop)\b/i;
+
   const consolidated: ScrapedEvent[] = [];
   for (const [name, group] of nameGroups) {
-    if (group.length >= 3) {
-      // 3+ instances of the same name = daily attraction/exhibit, not a unique event
+    // Skip consolidation for names with event keywords — these are real multi-day events
+    const hasEventKeywords = realEventPattern.test(name);
+
+    if (group.length >= 3 && !hasEventKeywords) {
+      // 3+ instances of the same name WITHOUT event keywords = daily attraction/exhibit
       // Consolidate into one "hours" entry with the full date range
       const sorted = [...group].sort((a, b) => a.start_date.localeCompare(b.start_date));
       const merged: ScrapedEvent = {
