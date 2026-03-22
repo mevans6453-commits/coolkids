@@ -19,6 +19,7 @@ type Props = {
 export default function EventsClient({ events, interactionCounts }: Props) {
   const supabase = createClient();
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const [hiddenVenueIds, setHiddenVenueIds] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<SortOption>("date");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
   const [costFilter, setCostFilter] = useState<CostFilter>("all");
@@ -29,7 +30,7 @@ export default function EventsClient({ events, interactionCounts }: Props) {
   const [groupBy, setGroupBy] = useState<GroupBy>("none");
   const [expandedVenues, setExpandedVenues] = useState<Set<string>>(new Set());
 
-  // Load user's hidden events on mount
+  // Load user's hidden events + hidden venues on mount
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
@@ -40,6 +41,14 @@ export default function EventsClient({ events, interactionCounts }: Props) {
         .eq("interaction_type", "hidden")
         .then(({ data }) => {
           if (data) setHiddenIds(new Set(data.map((d) => d.event_id)));
+        });
+      supabase
+        .from("user_venue_preferences")
+        .select("venue_id")
+        .eq("user_id", user.id)
+        .eq("is_hidden", true)
+        .then(({ data }) => {
+          if (data) setHiddenVenueIds(new Set(data.map((d) => d.venue_id)));
         });
     });
   }, [supabase]);
@@ -75,7 +84,7 @@ export default function EventsClient({ events, interactionCounts }: Props) {
 
   // Filter + sort pipeline
   const filtered = useMemo(() => {
-    let result = events.filter((e) => !hiddenIds.has(e.id));
+    let result = events.filter((e) => !hiddenIds.has(e.id) && !hiddenVenueIds.has(e.venue_id));
     const totalAfterHidden = result.length;
 
     // Time filter
