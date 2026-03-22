@@ -67,13 +67,30 @@ function parseHtmlForEvents(html: string, defaultCategories: string[]): ScrapedE
   for (const section of sections) {
     if (isNonEventHeading(section.heading)) continue;
 
+    // Check if the heading IS a date (e.g. "April 1st" on WordPress event pages)
+    const headingIsDate = /^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:st|nd|rd|th)?$/i.test(section.heading.trim());
+
     // Try to find a date from <time> elements near this section,
     // or fall back to regex parsing the plain text
     let dateInfo = findNearbyDate(section, timeElements, currentYear);
     if (!dateInfo) {
-      dateInfo = extractDate(section.text, currentYear);
+      // If heading is a date, extract from the heading itself
+      dateInfo = headingIsDate
+        ? extractDate(section.heading, currentYear)
+        : extractDate(section.text, currentYear);
     }
     if (!dateInfo) continue; // No date found — skip
+
+    // If the heading was a date, extract the real event name from bold/strong text
+    let eventName = section.heading;
+    if (headingIsDate) {
+      const boldMatch = section.html.match(/<(?:strong|b)>([^<]{4,120})<\/(?:strong|b)>/i);
+      if (boldMatch) {
+        eventName = stripHtml(boldMatch[1]).trim();
+      } else {
+        continue; // Date heading but no bold event name — skip
+      }
+    }
 
     const timeInfo = extractTime(section.text);
     const costInfo = extractCost(section.text);
@@ -87,7 +104,7 @@ function parseHtmlForEvents(html: string, defaultCategories: string[]): ScrapedE
     const imageUrl = imgMatch ? resolveUrl(imgMatch[1]) : null;
 
     events.push({
-      name: section.heading.slice(0, 200),
+      name: eventName.slice(0, 200),
       description: section.text.slice(0, 300) || null,
       start_date: dateInfo.start_date,
       end_date: dateInfo.end_date,
@@ -98,8 +115,8 @@ function parseHtmlForEvents(html: string, defaultCategories: string[]): ScrapedE
       cost_max: costInfo?.cost_max ?? null,
       is_free: costInfo?.is_free || false,
       pricing_notes: costInfo?.pricing_notes ?? null,
-      ...extractAge(`${section.heading} ${section.text}`),
-      event_type: classifyEventType(section.heading, section.text.slice(0, 300), dateInfo.start_date, dateInfo.end_date),
+      ...extractAge(`${eventName} ${section.text}`),
+      event_type: classifyEventType(eventName, section.text.slice(0, 300), dateInfo.start_date, dateInfo.end_date),
       categories: [...defaultCategories],
       source_url: sourceUrl,
       image_url: imageUrl,

@@ -11,6 +11,11 @@ import type { ScrapedEvent } from "./base-scraper";
 
 /** Check if a heading is NOT an event (e.g., "Become a Member", "Get Tickets") */
 export function isNonEventHeading(name: string): boolean {
+  // If heading looks like a date (e.g. "April 1st", "March 20th"), it IS event-related
+  if (/^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:st|nd|rd|th)?$/i.test(name.trim())) {
+    return false;
+  }
+
   const skipPatterns = [
     /become a member/i,
     /get your tickets/i,
@@ -81,6 +86,35 @@ export function extractDate(
     };
     const month = monthNames[shortMatch[2].toLowerCase()];
     const day = parseInt(shortMatch[1]);
+    if (month !== undefined && day >= 1 && day <= 31) {
+      const date = new Date(currentYear, month, day);
+      return { start_date: date.toISOString().split("T")[0], end_date: null };
+    }
+  }
+
+  // Pattern: "March 21" or "April 1st" (full month + day, optional ordinal, no year)
+  // Negative lookahead ensures we don't steal "March 21, 2026" from pattern 2
+  const monthDayNoYear =
+    /(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})(?:st|nd|rd|th)?(?!\s*,?\s*\d{4})/i;
+  const mdnyMatch = text.match(monthDayNoYear);
+  if (mdnyMatch) {
+    return {
+      start_date: formatDateStr(mdnyMatch[1], parseInt(mdnyMatch[2]), currentYear),
+      end_date: null,
+    };
+  }
+
+  // Pattern: "Mar 21" or "Apr 1st" (short month first, then day — reverse of "21 Mar")
+  const revShortDateRegex =
+    /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})(?:st|nd|rd|th)?/i;
+  const revShortMatch = text.match(revShortDateRegex);
+  if (revShortMatch) {
+    const monthNames: Record<string, number> = {
+      jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+      jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+    };
+    const month = monthNames[revShortMatch[1].toLowerCase()];
+    const day = parseInt(revShortMatch[2]);
     if (month !== undefined && day >= 1 && day <= 31) {
       const date = new Date(currentYear, month, day);
       return { start_date: date.toISOString().split("T")[0], end_date: null };
