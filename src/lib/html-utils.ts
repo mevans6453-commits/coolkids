@@ -1,6 +1,7 @@
 /**
  * Decode HTML entities in a string.
  * Handles named entities (&amp; &lt; etc.) and numeric entities (&#8220; &#x2014; etc.)
+ * Also strips all HTML tags and cleans up escaped content from scrapers.
  */
 const NAMED_ENTITIES: Record<string, string> = {
   "&amp;": "&",
@@ -25,10 +26,13 @@ const NAMED_ENTITIES: Record<string, string> = {
 export function decodeHtmlEntities(text: string): string {
   if (!text) return text;
 
-  // Strip HTML tags: convert <br>, <br/>, and block-level closing tags to a space, then remove all remaining tags
-  let decoded = text.replace(/<br\s*\/?>/gi, " ");
-  decoded = decoded.replace(/<\/(?:p|div|li|h[1-6]|tr|blockquote)>/gi, " ");
-  decoded = decoded.replace(/<[^>]+>/g, "");
+  // First: remove backslash escapes from scraped JSON (e.g. \' \" \n)
+  let decoded = text.replace(/\\'/g, "'").replace(/\\"/g, '"').replace(/\\n/g, " ");
+
+  // Decode named entities FIRST so &lt;p&gt; becomes <p> before tag stripping
+  decoded = decoded.replace(/&[a-zA-Z]+;/g, (entity) =>
+    NAMED_ENTITIES[entity.toLowerCase()] ?? entity
+  );
 
   // Decode numeric entities: &#8220; or &#x201C;
   decoded = decoded.replace(/&#(\d+);/g, (_, code) =>
@@ -38,10 +42,10 @@ export function decodeHtmlEntities(text: string): string {
     String.fromCharCode(parseInt(code, 16))
   );
 
-  // Decode named entities
-  decoded = decoded.replace(/&[a-zA-Z]+;/g, (entity) =>
-    NAMED_ENTITIES[entity.toLowerCase()] ?? entity
-  );
+  // Strip HTML tags: convert <br>, <br/>, and block-level closing tags to a space, then remove all remaining tags
+  decoded = decoded.replace(/<br\s*\/?>/gi, " ");
+  decoded = decoded.replace(/<\/(?:p|div|li|h[1-6]|tr|blockquote)>/gi, " ");
+  decoded = decoded.replace(/<[^>]+>/g, "");
 
   // Collapse extra whitespace (from removed tags) into single spaces and trim
   decoded = decoded.replace(/\s+/g, " ").trim();

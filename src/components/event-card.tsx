@@ -1,12 +1,11 @@
 import type { Event } from "@/lib/types";
-import { Calendar, MapPin, DollarSign, Users, ExternalLink } from "lucide-react";
+import { MapPin, ExternalLink } from "lucide-react";
 import { formatDateRange } from "@/lib/event-utils";
 import { decodeHtmlEntities } from "@/lib/html-utils";
 import { getCategoryBadgeClasses } from "@/lib/category-colors";
 import ExpandableDateRange from "./expandable-date-range";
 import InteractionButtons from "./interaction-buttons";
 import EventActions from "./event-actions";
-import ShareButton from "./share-button";
 
 type Props = {
   event: Event;
@@ -16,11 +15,34 @@ type Props = {
   view?: "grid" | "list";
 };
 
+/** Detect if an event should show a Featured or Seasonal badge */
+function getScaleBadge(event: Event): { label: string; classes: string } | null {
+  const name = (event.name || "").toLowerCase();
+  const desc = (event.description || "").toLowerCase();
+  const combined = `${name} ${desc}`;
+
+  // Check Featured keywords FIRST (takes priority over Seasonal)
+  const featuredKeywords = ["festival", "fair", "gala", "celebration", "palooza", "expo", "grand opening", "fireworks", "concert series"];
+  if (featuredKeywords.some((kw) => combined.includes(kw))) {
+    return { label: "Featured", classes: "bg-indigo-50 text-indigo-600 border border-indigo-100" };
+  }
+
+  // Check for multi-week/month span (seasonal indicator)
+  if (event.start_date && event.end_date) {
+    const start = new Date(event.start_date);
+    const end = new Date(event.end_date);
+    const days = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+    if (days > 21) {
+      return { label: "Seasonal", classes: "bg-amber-50 text-amber-600 border border-amber-100" };
+    }
+  }
+
+  return null;
+}
+
 export default function EventCard({ event, starCount, attendingCount, onHide, view = "grid" }: Props) {
-  const dateStr = new Date(event.start_date + "T00:00:00").toLocaleDateString(
-    "en-US",
-    { weekday: "short", month: "short", day: "numeric" }
-  );
+  const scaleBadge = getScaleBadge(event);
+  const moreInfoUrl = event.source_url || event.venue?.website;
 
   if (view === "list") {
     const rawDesc = event.description ? decodeHtmlEntities(event.description) : null;
@@ -31,7 +53,7 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
     return (
       <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 hover:shadow-sm sm:px-5 sm:py-4">
         <div className="flex items-start gap-3 sm:gap-4">
-          {/* Date column — desktop only (w-36 fits "Mar 30 – Apr 14") */}
+          {/* Date column — desktop only */}
           <div className="hidden w-36 flex-shrink-0 pt-0.5 text-center sm:block">
             <ExpandableDateRange event={event} />
             {event.start_time && (
@@ -41,9 +63,14 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
 
           {/* Main content */}
           <div className="min-w-0 flex-1">
-            {/* Name + category tags */}
+            {/* Name + badges */}
             <div className="flex flex-wrap items-baseline gap-1.5">
               <h3 className="text-base font-semibold text-gray-900">{decodeHtmlEntities(event.name)}</h3>
+              {scaleBadge && (
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${scaleBadge.classes}`}>
+                  {scaleBadge.label}
+                </span>
+              )}
               <div className="flex flex-wrap gap-1">
                 {event.categories?.slice(0, 3).map((cat) => (
                   <span key={cat} className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${getCategoryBadgeClasses(cat)}`}>
@@ -53,7 +80,7 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
               </div>
             </div>
 
-            {/* Date + venue (mobile shows date inline, desktop hides it) */}
+            {/* Date + venue */}
             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-gray-500 sm:text-xs">
               <span className="sm:hidden font-medium text-[var(--primary)]">
                 {formatDateRange(event.start_date, event.end_date)}{event.start_time && ` · ${event.start_time}`}
@@ -71,44 +98,40 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
               <p className="mt-1 line-clamp-2 text-sm text-gray-600">{desc}</p>
             )}
 
-            {/* Price */}
+            {/* Price + More Info row */}
             <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
               {event.is_free ? (
-                <span className="rounded-full bg-green-50 px-2.5 py-0.5 font-semibold text-green-700">FREE</span>
+                <span className="rounded-full bg-green-50 px-2.5 py-0.5 font-semibold text-green-600 border border-green-100">FREE</span>
               ) : event.cost ? (
                 <span className="font-medium text-gray-700">{event.cost}</span>
               ) : null}
               {event.pricing_notes && (
                 <span className="text-gray-500">{event.pricing_notes}</span>
               )}
+              {moreInfoUrl && (
+                <a
+                  href={moreInfoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 rounded-md bg-[var(--primary)]/5 px-2.5 py-1 text-xs font-medium text-[var(--primary)] hover:bg-[var(--primary)]/10 transition-colors border border-[var(--primary)]/10"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  More Info
+                </a>
+              )}
             </div>
 
-            {/* More Info link — source URL or venue website fallback */}
-            {(event.source_url || event.venue?.website) && (
-              <a
-                href={event.source_url || event.venue?.website || "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-[var(--primary)] hover:underline"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <ExternalLink className="h-3 w-3" />
-                More Info →
-              </a>
-            )}
-
-            {/* Interaction buttons — mobile: below content, full width */}
+            {/* Interaction buttons — mobile */}
             <div className="mt-2 flex items-center gap-2 sm:hidden">
               <InteractionButtons eventId={event.id} initialStarCount={starCount} initialAttendingCount={attendingCount} />
-              <ShareButton event={event} />
               <EventActions event={event} onHide={onHide} />
             </div>
           </div>
 
           {/* Actions column — desktop only */}
-          <div className="hidden flex-shrink-0 items-center gap-2 sm:flex">
+          <div className="hidden flex-shrink-0 items-center gap-1 sm:flex">
             <InteractionButtons eventId={event.id} initialStarCount={starCount} initialAttendingCount={attendingCount} />
-            <ShareButton event={event} />
             <EventActions event={event} onHide={onHide} />
           </div>
         </div>
@@ -116,18 +139,23 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
     );
   }
 
-  // Grid view (default)
+  // Grid view
   return (
     <div className="flex flex-col rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md">
       <div className="flex items-start justify-between px-5 pt-5">
         <div className="flex flex-wrap gap-1">
+          {scaleBadge && (
+            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${scaleBadge.classes}`}>
+              {scaleBadge.label}
+            </span>
+          )}
           {event.categories?.slice(0, 3).map((cat) => (
             <span key={cat} className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${getCategoryBadgeClasses(cat)}`}>
               {cat}
             </span>
           ))}
           {event.is_free && (
-            <span className="rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700">Free</span>
+            <span className="rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-600 border border-green-100">Free</span>
           )}
         </div>
         <EventActions event={event} onHide={onHide} />
@@ -142,7 +170,6 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
 
         <div className="mt-auto space-y-2 pt-4 text-sm text-gray-500">
           <div className="flex items-start gap-2">
-            <Calendar className="mt-0.5 h-4 w-4 flex-shrink-0" />
             <div>
               <ExpandableDateRange event={event} />
               {event.start_time && <span className="text-sm text-gray-500"> {event.start_time}</span>}
@@ -157,41 +184,28 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
           )}
 
           {event.cost && (
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4 flex-shrink-0" />
-              <span>{event.cost}</span>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-medium text-gray-700">{event.cost}</span>
               {event.pricing_notes && <span className="text-xs text-gray-400">{event.pricing_notes}</span>}
-            </div>
-          )}
-
-          {!event.cost && event.pricing_notes && (
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4 flex-shrink-0" />
-              <span className="text-xs text-gray-400">{event.pricing_notes}</span>
-            </div>
-          )}
-
-          {event.age_range_min !== null && event.age_range_max !== null && (
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 flex-shrink-0" />
-              <span>Ages {event.age_range_min}–{event.age_range_max}</span>
             </div>
           )}
         </div>
 
-        {(event.source_url || event.venue?.website) && (
-          <a href={event.source_url || event.venue?.website || "#"} target="_blank" rel="noopener noreferrer"
-            className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[var(--primary)] hover:underline"
+        {moreInfoUrl && (
+          <a href={moreInfoUrl} target="_blank" rel="noopener noreferrer"
+            className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--primary)]/5 px-4 py-2 text-sm font-medium text-[var(--primary)] hover:bg-[var(--primary)]/10 transition-colors border border-[var(--primary)]/10"
             onClick={(e) => e.stopPropagation()}>
             <ExternalLink className="h-3.5 w-3.5" />
-            More Info →
+            More Info
           </a>
         )}
       </div>
 
-      <div className="flex items-center gap-2 px-5 pb-4">
+      <div className="flex items-center gap-2 border-t border-gray-100 px-5 py-3">
         <InteractionButtons eventId={event.id} initialStarCount={starCount} initialAttendingCount={attendingCount} />
-        <ShareButton event={event} />
+        <div className="ml-auto">
+          <EventActions event={event} onHide={onHide} />
+        </div>
       </div>
     </div>
   );
