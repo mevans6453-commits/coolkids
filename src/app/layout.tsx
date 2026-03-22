@@ -25,6 +25,9 @@ export default function RootLayout({
             </a>
             {/* Desktop nav */}
             <nav className="hidden items-center gap-6 text-sm font-medium sm:flex">
+              <a href="/this-weekend" className="text-gray-600 hover:text-[var(--primary)]">
+                This Weekend
+              </a>
               <a href="/events" className="text-gray-600 hover:text-[var(--primary)]">
                 Events
               </a>
@@ -54,6 +57,11 @@ export default function RootLayout({
                   Explore
                 </h3>
                 <ul className="mt-3 space-y-2 text-sm text-gray-600">
+                  <li>
+                    <a href="/this-weekend" className="hover:text-[var(--primary)]">
+                      This Weekend
+                    </a>
+                  </li>
                   <li>
                     <a href="/events" className="hover:text-[var(--primary)]">
                       Events

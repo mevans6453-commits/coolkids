@@ -20,6 +20,13 @@ export default function MobileNav() {
         <div className="absolute left-0 right-0 top-16 z-50 border-b border-[var(--border)] bg-white shadow-lg">
           <nav className="flex flex-col px-4 py-3">
             <a
+              href="/this-weekend"
+              onClick={() => setOpen(false)}
+              className="rounded-lg px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50"
+            >
+              This Weekend
+            </a>
+            <a
               href="/events"
               onClick={() => setOpen(false)}
               className="rounded-lg px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50"
