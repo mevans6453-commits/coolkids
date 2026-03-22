@@ -45,7 +45,7 @@ export const htmlStrategy: ScrapeStrategy = {
         return { events, error: null };
       }
 
-      const events = parseHtmlForEvents(html, config.default_categories);
+      const events = parseHtmlForEvents(html, config.default_categories, config.scrape_url);
       return { events, error: null };
     } catch (err) {
       return { events: [], error: err instanceof Error ? err.message : String(err) };
@@ -54,7 +54,7 @@ export const htmlStrategy: ScrapeStrategy = {
 };
 
 /** Parse HTML for events using a two-pass approach */
-function parseHtmlForEvents(html: string, defaultCategories: string[]): ScrapedEvent[] {
+function parseHtmlForEvents(html: string, defaultCategories: string[], scrapeUrl?: string): ScrapedEvent[] {
   const currentYear = new Date().getFullYear();
   const events: ScrapedEvent[] = [];
 
@@ -97,11 +97,11 @@ function parseHtmlForEvents(html: string, defaultCategories: string[]): ScrapedE
 
     // Look for a link in the original HTML near this heading
     const linkMatch = section.html.match(/<a[^>]*href=["']([^"']+)["'][^>]*>/i);
-    const sourceUrl = linkMatch ? resolveUrl(linkMatch[1]) : null;
+    const sourceUrl = linkMatch ? resolveUrl(linkMatch[1], scrapeUrl) : null;
 
     // Look for an image
     const imgMatch = section.html.match(/<img[^>]*src=["']([^"']+)["']/i);
-    const imageUrl = imgMatch ? resolveUrl(imgMatch[1]) : null;
+    const imageUrl = imgMatch ? resolveUrl(imgMatch[1], scrapeUrl) : null;
 
     events.push({
       name: eventName.slice(0, 200),
@@ -205,10 +205,19 @@ function findNearbyDate(
   return extractDate(section.text, currentYear);
 }
 
-/** Basic URL resolution — skip data: and javascript: URLs */
-function resolveUrl(url: string): string | null {
+/** Resolve URLs — handle relative paths, skip data/javascript URLs */
+function resolveUrl(url: string, baseUrl?: string): string | null {
   if (url.startsWith("data:") || url.startsWith("javascript:") || url.startsWith("#")) {
     return null;
+  }
+  // Relative URL — prepend base domain
+  if (url.startsWith("/") && baseUrl) {
+    try {
+      const base = new URL(baseUrl);
+      return `${base.origin}${url}`;
+    } catch {
+      return url;
+    }
   }
   return url;
 }

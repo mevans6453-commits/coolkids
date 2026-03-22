@@ -484,7 +484,7 @@ export function validateScrapedEvents(
       continue;
     }
 
-    // 4. Name is a page title / navigation element
+    // 4. Name is a page title / navigation element / ad / CTA
     const pageTitlePatterns = [
       /^events?\s*calendar$/i, /^upcoming\s*events$/i, /^what.s\s*happening/i,
       /^shows?\s*and\s*screenings$/i, /^calendar\s*of\s*events$/i,
@@ -492,9 +492,11 @@ export function validateScrapedEvents(
       /^directions$/i, /^faq$/i, /^gift\s*(shop|card)/i, /^membership/i,
       /^privacy/i, /^terms/i, /^menu$/i, /^donate$/i, /^volunteer$/i,
       /^careers$/i, /^jobs$/i, /^newsletter$/i, /^sign\s*up$/i,
+      /\border\s*(now|today)/i, /\bbuy\s*(now|today)/i, /\bshop\s*(now|today)/i,
+      /^new\s*book\s*order/i, /^opening\s*(november|december|january|february)/i,
     ];
     if (pageTitlePatterns.some((p) => p.test(lower))) {
-      rejected.push({ event: e, reason: `Page title/nav: "${name}"` });
+      rejected.push({ event: e, reason: `Page title/nav/ad: "${name}"` });
       continue;
     }
 
@@ -548,8 +550,8 @@ export function validateScrapedEvents(
 
   const consolidated: ScrapedEvent[] = [];
   for (const [name, group] of nameGroups) {
-    if (group.length >= 5) {
-      // 5+ instances = almost certainly a daily attraction/ride, not a real event
+    if (group.length >= 3) {
+      // 3+ instances of the same name = daily attraction/exhibit, not a unique event
       // Consolidate into one "hours" entry with the full date range
       const sorted = [...group].sort((a, b) => a.start_date.localeCompare(b.start_date));
       const merged: ScrapedEvent = {
