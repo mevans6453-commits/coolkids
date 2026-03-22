@@ -1,4 +1,5 @@
 import { MapPin, Calendar, Mail, Star } from "lucide-react";
+import { getCategoryBadgeClasses } from "@/lib/category-colors";
 import { supabase } from "@/lib/supabase";
 import type { DadJoke as DadJokeType } from "@/lib/types";
 import DadJoke from "@/components/dad-joke";
@@ -59,24 +60,28 @@ export default async function HomePage() {
         </h2>
         <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <FeatureCard
-            icon={<MapPin className="h-8 w-8 text-blue-600" />}
+            icon={<MapPin className="h-8 w-8 text-emerald-600" />}
             title="Local Venues"
             description="We track 20+ family-friendly venues across Cherokee County and North Georgia."
+            accentBg="bg-emerald-50"
           />
           <FeatureCard
             icon={<Calendar className="h-8 w-8 text-blue-600" />}
             title="Auto-Updated Events"
             description="Events are automatically scraped from venue websites every month."
+            accentBg="bg-blue-50"
           />
           <FeatureCard
             icon={<Star className="h-8 w-8 text-amber-500" />}
             title="Personalized"
             description="Filter by your kids' ages, interests, distance, and budget."
+            accentBg="bg-amber-50"
           />
           <FeatureCard
-            icon={<Mail className="h-8 w-8 text-blue-600" />}
+            icon={<Mail className="h-8 w-8 text-purple-600" />}
             title="Monthly Newsletter"
             description="Get a curated email with events that match your family's preferences."
+            accentBg="bg-purple-50"
           />
         </div>
       </section>
@@ -96,9 +101,9 @@ export default async function HomePage() {
                 key={venue.name}
                 className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md"
               >
-                <div className="mb-2 text-sm font-medium text-blue-600">
+                <span className={`mb-2 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${getCategoryBadgeClasses(venue.category)}`}>
                   {venue.category}
-                </div>
+                </span>
                 <h3 className="text-lg font-semibold text-gray-900">
                   {venue.name}
                 </h3>
@@ -117,14 +122,16 @@ function FeatureCard({
   icon,
   title,
   description,
+  accentBg = "bg-blue-50",
 }: {
   icon: React.ReactNode;
   title: string;
   description: string;
+  accentBg?: string;
 }) {
   return (
     <div className="flex flex-col items-center rounded-xl border border-gray-100 p-6 text-center shadow-sm">
-      <div className="mb-4 rounded-full bg-blue-50 p-3">{icon}</div>
+      <div className={`mb-4 rounded-full ${accentBg} p-3`}>{icon}</div>
       <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
       <p className="mt-2 text-sm text-gray-600">{description}</p>
     </div>

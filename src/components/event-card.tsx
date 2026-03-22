@@ -2,6 +2,7 @@ import type { Event } from "@/lib/types";
 import { Calendar, MapPin, DollarSign, Users } from "lucide-react";
 import { formatDateRange } from "@/lib/event-utils";
 import { decodeHtmlEntities } from "@/lib/html-utils";
+import { getCategoryBadgeClasses } from "@/lib/category-colors";
 import ExpandableDateRange from "./expandable-date-range";
 import InteractionButtons from "./interaction-buttons";
 import EventActions from "./event-actions";
@@ -45,7 +46,7 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
               <h3 className="text-base font-semibold text-gray-900">{decodeHtmlEntities(event.name)}</h3>
               <div className="flex flex-wrap gap-1">
                 {event.categories?.slice(0, 3).map((cat) => (
-                  <span key={cat} className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                  <span key={cat} className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${getCategoryBadgeClasses(cat)}`}>
                     {cat}
                   </span>
                 ))}
@@ -107,7 +108,7 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
       <div className="flex items-start justify-between px-5 pt-5">
         <div className="flex flex-wrap gap-1">
           {event.categories?.slice(0, 3).map((cat) => (
-            <span key={cat} className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+            <span key={cat} className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${getCategoryBadgeClasses(cat)}`}>
               {cat}
             </span>
           ))}

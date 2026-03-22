@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import type { Venue } from "@/lib/types";
 import { MapPin, Globe, Phone } from "lucide-react";
+import { getCategoryBadgeClasses } from "@/lib/category-colors";
 
 // Venues page — shows all tracked venues in the database
 export const revalidate = 3600; // Refresh data every hour
@@ -44,7 +45,7 @@ export default async function VenuesPage() {
       {/* Venue count */}
       {venues && venues.length > 0 && (
         <p className="mt-4 text-sm text-gray-500">
-          Tracking {venues.length} venues
+          Discover {venues.length} family-friendly venues across the area
         </p>
       )}
 
@@ -69,7 +70,7 @@ function VenueCard({ venue }: { venue: Venue }) {
         {venue.categories?.map((cat) => (
           <span
             key={cat}
-            className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700"
+            className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${getCategoryBadgeClasses(cat)}`}
           >
             {cat}
           </span>
@@ -94,17 +95,15 @@ function VenueCard({ venue }: { venue: Venue }) {
         </div>
 
         {venue.website && (
-          <div className="flex items-center gap-2">
-            <Globe className="h-4 w-4 flex-shrink-0" />
-            <a
+          <a
               href={venue.website}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800"
+              className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors"
             >
-              Website
+              <Globe className="h-3.5 w-3.5" />
+              Visit Website →
             </a>
-          </div>
         )}
 
         {venue.phone && (
