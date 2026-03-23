@@ -1,5 +1,5 @@
 /**
- * Fix Woodstock Arts URL and re-scrape
+ * Add Art Barn + Tanglewood Farm with correct schema
  */
 import { readFileSync } from "fs";
 import { resolve } from "path";
@@ -24,41 +24,38 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-async function test() {
-  // Fix URL first
-  await supabase
-    .from("venues")
-    .update({ scrape_url: "https://woodstockarts.org/events/" })
-    .ilike("name", "%woodstock arts%");
-  console.log("✅ Updated Woodstock Arts URL to /events/\n");
+async function main() {
+  // Add Art Barn
+  const { data: ab, error: abErr } = await supabase.from("venues").insert({
+    name: "The Art Barn at Morning Glory Farm",
+    city: "Canton",
+    county: "Cherokee",
+    state: "GA",
+    website: "https://www.theartbarn.com",
+    scrape_url: "https://www.theartbarn.com/events",
+    categories: ["farms", "arts", "outdoor"],
+    description: "A unique Canton farm where kids meet friendly animals and create art. Play Dates, Unicorn Day, field trips, birthday parties, and camps.",
+    is_active: true,
+  }).select("id, name");
+  
+  if (abErr) console.log("Art Barn error:", abErr.message);
+  else console.log(`✅ Added: ${ab?.[0]?.name} (${ab?.[0]?.id})`);
 
-  const { data: venues } = await supabase
-    .from("venues")
-    .select("id, name, scrape_url")
-    .ilike("name", "%woodstock arts%")
-    .limit(1);
-
-  if (!venues || venues.length === 0) {
-    console.log("Not found!");
-    return;
-  }
-
-  const venue = venues[0];
-  console.log(`Scraping: ${venue.name} (${venue.scrape_url})\n`);
-
-  const { runScrapeAll } = await import("../src/scrapers/scrape-engine");
-  const summary = await runScrapeAll([venue.id], true);
-
-  console.log(`\n=== RESULTS ===`);
-  for (const r of summary.results) {
-    console.log(`Strategy used: ${r.strategy_used}`);
-    console.log(`Events found: ${r.events_found}`);
-    console.log(`Events saved: ${r.events_saved}`);
-    for (const a of r.attempts) {
-      console.log(`  ${a.strategy}: ${a.status} (${a.events_found} events, ${a.duration_ms}ms)`);
-      if (a.error_message) console.log(`    Error: ${a.error_message}`);
-    }
-  }
+  // Add Tanglewood Farm
+  const { data: tw, error: twErr } = await supabase.from("venues").insert({
+    name: "Tanglewood Farm Miniatures",
+    city: "Canton",
+    county: "Cherokee",
+    state: "GA",
+    website: "https://tanglewoodfarm.com",
+    scrape_url: null,
+    categories: ["farms", "outdoor", "education"],
+    description: "Home to over 150 rare, heritage, and miniature breed therapy farm animals. Educational tours, birthday parties, and seasonal events. All ages.",
+    is_active: true,
+  }).select("id, name");
+  
+  if (twErr) console.log("Tanglewood error:", twErr.message);
+  else console.log(`✅ Added: ${tw?.[0]?.name} (${tw?.[0]?.id})`);
 }
 
-test().catch(console.error);
+main().catch(console.error);
