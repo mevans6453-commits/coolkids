@@ -182,7 +182,7 @@ export default function EventsClient({ events, interactionCounts }: Props) {
     result = mergeConsecutiveEvents(result);
 
     return { events: result, totalAfterHidden };
-  }, [events, hiddenIds, timeFilter, costFilter, selectedCategories, ageFilter, showHours, sortBy, interactionCounts]);
+  }, [events, hiddenIds, hiddenVenueIds, timeFilter, costFilter, selectedCategories, ageFilter, showHours, sortBy, interactionCounts]);
 
   // Group events by category or venue
   const grouped = useMemo(() => {
