@@ -456,6 +456,91 @@ export function parseEventsFromMarkdown(
     });
   }
 
+  // Fallback: WordPress calendar links [Event Name](url?occurrence=YYYY-MM-DD)
+  if (events.length === 0) {
+    const wpEvents = parseWordPressCalendarLinks(markdown, defaultCategories, currentYear);
+    if (wpEvents.length > 0) {
+      return wpEvents;
+    }
+  }
+
+  return events;
+}
+
+/**
+ * Parse events from WordPress calendar-style markdown links.
+ * Pattern: [Event Name](https://site.com/events/slug/?occurrence=2026-03-21)
+ * These repeat for every day the event runs. We deduplicate by name,
+ * keeping only the earliest future occurrence.
+ */
+function parseWordPressCalendarLinks(
+  markdown: string,
+  defaultCategories: string[],
+  currentYear: number
+): ScrapedEvent[] {
+  const today = new Date().toISOString().split("T")[0];
+  // Match: [Event Name](url?occurrence=YYYY-MM-DD)
+  const linkPattern = /\[([^\]]+)\]\((https?:\/\/[^)]*[?&]occurrence=(\d{4}-\d{2}-\d{2})[^)]*)\)/g;
+  
+  // Collect all events, tracking first future occurrence per name
+  const eventMap = new Map<string, { name: string; url: string; firstDate: string; allDates: string[] }>();
+  
+  let match;
+  while ((match = linkPattern.exec(markdown)) !== null) {
+    const name = match[1].trim();
+    const url = match[2];
+    const date = match[3];
+    
+    // Skip past dates
+    if (date < today) continue;
+    
+    const existing = eventMap.get(name);
+    if (existing) {
+      existing.allDates.push(date);
+      if (date < existing.firstDate) {
+        existing.firstDate = date;
+        existing.url = url;
+      }
+    } else {
+      eventMap.set(name, { name, url, firstDate: date, allDates: [date] });
+    }
+  }
+
+  const events: ScrapedEvent[] = [];
+  for (const [, entry] of eventMap) {
+    if (isNonEventHeading(entry.name)) continue;
+
+    const sortedDates = [...entry.allDates].sort();
+    const endDate = sortedDates.length > 1 ? sortedDates[sortedDates.length - 1] : null;
+    
+    const ageInfo = extractAge(entry.name);
+    const eventType = classifyEventType(entry.name, null, entry.firstDate, endDate);
+
+    events.push({
+      name: entry.name,
+      description: null,
+      start_date: entry.firstDate,
+      end_date: endDate,
+      start_time: null,
+      end_time: null,
+      cost: null,
+      cost_min: null,
+      cost_max: null,
+      is_free: false,
+      pricing_notes: null,
+      age_range_min: ageInfo.age_range_min,
+      age_range_max: ageInfo.age_range_max,
+      event_type: eventType,
+      categories: [...defaultCategories],
+      source_url: entry.url,
+      image_url: null,
+    });
+  }
+
+  if (events.length > 0) {
+    console.log(`[Parse] WordPress calendar detected: ${eventMap.size} unique events from ${Array.from(eventMap.values()).reduce((sum, e) => sum + e.allDates.length, 0)} total links`);
+  }
+
   return events;
 }
 

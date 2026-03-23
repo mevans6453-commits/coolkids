@@ -1,5 +1,5 @@
 /**
- * Test script: Try the Chromium strategy on one venue
+ * Test scrape on Chattahoochee Nature Center with the new WordPress parser
  */
 import { readFileSync } from "fs";
 import { resolve } from "path";
@@ -25,25 +25,36 @@ const supabase = createClient(
 );
 
 async function test() {
-  // Find Puppetry Arts venue
+  // First, update the scrape URL
+  const { error: updateErr } = await supabase
+    .from("venues")
+    .update({ scrape_url: "https://chattnaturecenter.org/all-events/" })
+    .ilike("name", "%chattahoochee nature%");
+  
+  if (updateErr) {
+    console.log("Error updating URL:", updateErr.message);
+    return;
+  }
+  console.log("✅ Updated scrape URL to /all-events/\n");
+
+  // Find the venue
   const { data: venues } = await supabase
     .from("venues")
     .select("id, name, scrape_url")
-    .ilike("name", "%puppetry%")
+    .ilike("name", "%chattahoochee nature%")
     .limit(1);
 
   if (!venues || venues.length === 0) {
-    console.log("Puppetry Arts venue not found!");
+    console.log("Venue not found!");
     return;
   }
 
   const venue = venues[0];
-  console.log(`Testing Chromium scrape on: ${venue.name}`);
+  console.log(`Scraping: ${venue.name}`);
   console.log(`URL: ${venue.scrape_url}\n`);
 
-  // Import and run the scrape engine for just this venue
   const { runScrapeAll } = await import("../src/scrapers/scrape-engine");
-  const summary = await runScrapeAll([venue.id], true); // forceDetect = true
+  const summary = await runScrapeAll([venue.id], true);
 
   console.log(`\n=== RESULTS ===`);
   for (const r of summary.results) {
