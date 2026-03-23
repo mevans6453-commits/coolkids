@@ -389,6 +389,9 @@ async function saveEvents(venueId: string, events: ScrapedEvent[]): Promise<numb
     // Estimate attendance for new events
     const estimatedAttendance = estimateAttendance(event);
 
+    // Check if event should be auto-flagged as not for kids
+    const notForKidsCheck = isNotForKids(event);
+
     // Default pricing fallback
     if (!event.cost && !event.is_free && event.cost_min === null && event.cost_max === null && !event.pricing_notes) {
       event.pricing_notes = "Check venue website for pricing";
@@ -410,9 +413,13 @@ async function saveEvents(venueId: string, events: ScrapedEvent[]): Promise<numb
         .single();
       
       // Preserve manual edits: if admin set it to 'not_for_kids', don't overwrite
-      const preservedEventType = current?.event_type === "not_for_kids" 
+      // Also auto-flag if keyword blocklist matches
+      let preservedEventType = current?.event_type === "not_for_kids" 
         ? "not_for_kids" 
-        : event.event_type;
+        : notForKidsCheck.flagged ? "not_for_kids" : event.event_type;
+      const notForKidsReason = current?.event_type === "not_for_kids"
+        ? undefined // Don't overwrite existing reason
+        : notForKidsCheck.flagged ? notForKidsCheck.reason : undefined;
 
       const { error } = await supabase
         .from("events")
@@ -434,6 +441,8 @@ async function saveEvents(venueId: string, events: ScrapedEvent[]): Promise<numb
           image_url: event.image_url,
           // Only update attendance if admin hasn't manually set it
           ...(current?.expected_attendance ? {} : { expected_attendance: estimatedAttendance }),
+          // Set reason if auto-flagged
+          ...(notForKidsReason ? { not_for_kids_reason: notForKidsReason } : {}),
         })
         .eq("id", existing[0].id);
 
@@ -459,7 +468,8 @@ async function saveEvents(venueId: string, events: ScrapedEvent[]): Promise<numb
         pricing_notes: event.pricing_notes,
         age_range_min: event.age_range_min,
         age_range_max: event.age_range_max,
-        event_type: event.event_type,
+        event_type: notForKidsCheck.flagged ? "not_for_kids" : event.event_type,
+        not_for_kids_reason: notForKidsCheck.flagged ? notForKidsCheck.reason : null,
         categories: event.categories,
         source_url: event.source_url,
         image_url: event.image_url,
@@ -532,4 +542,72 @@ function estimateAttendance(event: ScrapedEvent): number {
   if (smallKeywords.some(k => text.includes(k)) && score <= 100) score = 50;
 
   return score;
+}
+
+// -----------------------------------------------
+// Not-For-Kids Keyword Blocklist
+// -----------------------------------------------
+
+const ADULT_KEYWORDS: [string, string][] = [
+  // Alcohol
+  ["bar crawl", "bar crawl"], ["pub crawl", "pub crawl"],
+  ["brewery tour", "brewery"], ["beer tasting", "beer tasting"],
+  ["wine tasting", "wine tasting"], ["wine dinner", "wine dinner"],
+  ["cocktail", "cocktail event"], ["bourbon", "bourbon/whiskey event"],
+  ["whiskey", "bourbon/whiskey event"], ["happy hour", "happy hour"],
+  // 21+
+  ["21+", "21+ event"], ["21 and over", "21+ event"],
+  ["adults only", "adults only"], ["adult night", "adult night"],
+  ["adult league", "adult league"],
+  // Adult programs
+  ["garden club", "garden club (adult)"], ["book club", "book club (adult)"],
+  ["quilting", "quilting group"], ["knitting group", "knitting group"],
+  ["aarp", "AARP/senior program"], ["for adults/seniors", "adult/senior program"],
+  ["for seniors", "senior program"], ["retirement", "retirement event"],
+  ["medicare", "medicare event"], ["estate planning", "estate planning"],
+  ["ask the social worker", "adult social services"],
+  // Entertainment
+  ["comedy night", "adult comedy"], ["stand-up comedy", "adult comedy"],
+  ["trivia night", "trivia night"], ["karaoke night", "karaoke"],
+  ["drag show", "drag show"], ["open mic night", "open mic"],
+  // Business
+  ["networking event", "networking"], ["business mixer", "business event"],
+  ["chamber of commerce", "chamber of commerce"],
+  ["career fair", "career fair"], ["job fair", "job fair"],
+  // Dining
+  ["brunch", "adult dining"], ["dinner series", "adult dining"],
+  // Fitness (adult)
+  ["run club", "adult run club"], ["boot camp", "boot camp"],
+  // Blood/medical
+  ["blood drive", "blood drive"],
+  // Financial
+  ["tax prep", "tax preparation"], ["financial planning", "financial event"],
+];
+
+const KID_OVERRIDES = [
+  "family", "kids", "children", "toddler", "youth",
+  "all ages", "baby", "infant", "kid-friendly",
+  "storytime", "story time", "puppet",
+];
+
+/**
+ * Check if an event should be auto-flagged as not for kids.
+ * Returns { flagged: true, reason } or { flagged: false }.
+ */
+function isNotForKids(event: ScrapedEvent): { flagged: boolean; reason?: string } {
+  const text = `${event.name} ${event.description || ""}`.toLowerCase();
+
+  // Check kid-friendly overrides first
+  if (KID_OVERRIDES.some(k => text.includes(k))) {
+    return { flagged: false };
+  }
+
+  for (const [keyword, reason] of ADULT_KEYWORDS) {
+    if (text.includes(keyword)) {
+      console.log(`  [FILTER] Auto-flagged "${event.name}" as not for kids (${reason})`);
+      return { flagged: true, reason };
+    }
+  }
+
+  return { flagged: false };
 }
