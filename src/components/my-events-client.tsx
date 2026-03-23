@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "./auth-provider";
 import {
   MapPin, Star, Hand, List, CalendarDays,
-  ChevronLeft, ChevronRight, X,
+  ChevronLeft, ChevronRight, X, CalendarPlus,
 } from "lucide-react";
 import { formatDateRange } from "@/lib/event-utils";
 import type { Event } from "@/lib/types";
@@ -18,6 +18,7 @@ import type { Event } from "@/lib/types";
 type Props = {
   attending: Event[];
   starred: Event[];
+  attendedDates?: Record<string, string>; // eventId → YYYY-MM-DD
 };
 
 type ViewMode = "list" | "calendar";
@@ -26,7 +27,7 @@ type ViewMode = "list" | "calendar";
 // Main Component
 // -----------------------------------------------
 
-export default function MyEventsClient({ attending: initialAttending, starred: initialStarred }: Props) {
+export default function MyEventsClient({ attending: initialAttending, starred: initialStarred, attendedDates = {} }: Props) {
   const supabase = useMemo(() => createClient(), []);
   const { user } = useAuth();
   const router = useRouter();
@@ -45,10 +46,40 @@ export default function MyEventsClient({ attending: initialAttending, starred: i
     return all.size;
   }, [attendingList, starredList]);
 
+  // Date picker modal state for multi-day events
+  const [datePickerEvent, setDatePickerEvent] = useState<Event | null>(null);
+
+  // Generate date range for date picker
+  function getDateRange(startDate: string, endDate: string): string[] {
+    const dates: string[] = [];
+    const start = new Date(startDate + "T00:00:00");
+    const end = new Date(endDate + "T00:00:00");
+    const cursor = new Date(start);
+    while (cursor <= end) {
+      dates.push(cursor.toISOString().split("T")[0]);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return dates;
+  }
+
+  function formatShortDate(dateStr: string): string {
+    const d = new Date(dateStr + "T00:00:00");
+    return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  }
+
   // Toggle an interaction (star or attending) on/off
   const toggleInteraction = useCallback(
     async (eventId: string, type: "star" | "attending") => {
       const isActive = type === "star" ? starredIds.has(eventId) : attendingIds.has(eventId);
+
+      // For multi-day events: show date picker when marking as attending
+      if (type === "attending" && !isActive) {
+        const event = [...attendingList, ...starredList].find((e) => e.id === eventId);
+        if (event && event.end_date && event.end_date !== event.start_date) {
+          setDatePickerEvent(event);
+          return;
+        }
+      }
 
       setRemoving((prev) => new Set(prev).add(`${eventId}-${type}`));
 
@@ -74,14 +105,17 @@ export default function MyEventsClient({ attending: initialAttending, starred: i
           }
         }
       } else {
-        // Add interaction
+        // Add interaction — for single-day attending, save attended_date
+        const event = [...attendingList, ...starredList].find((e) => e.id === eventId);
+        const insertData: Record<string, string> = { user_id: user.id, event_id: eventId, interaction_type: type };
+        if (type === "attending" && event?.start_date) {
+          insertData.attended_date = event.start_date;
+        }
         const { error } = await supabase
           .from("user_event_interactions")
-          .insert({ user_id: user.id, event_id: eventId, interaction_type: type });
+          .insert(insertData);
 
         if (!error) {
-          // Find the event object from either list
-          const event = [...attendingList, ...starredList].find((e) => e.id === eventId);
           if (event) {
             if (type === "star") {
               setStarredList((prev) => [...prev, event]);
@@ -103,6 +137,27 @@ export default function MyEventsClient({ attending: initialAttending, starred: i
     },
     [supabase, router, user, attendingIds, starredIds, attendingList, starredList]
   );
+
+  // Handle date selection from the multi-day picker modal
+  async function handleDatePickerSelect(date: string) {
+    if (!user || !datePickerEvent) return;
+
+    const eventId = datePickerEvent.id;
+    setDatePickerEvent(null);
+    setRemoving((prev) => new Set(prev).add(`${eventId}-attending`));
+
+    const { error } = await supabase
+      .from("user_event_interactions")
+      .insert({ user_id: user.id, event_id: eventId, interaction_type: "attending", attended_date: date });
+
+    if (!error) {
+      const event = [...attendingList, ...starredList].find((e) => e.id === eventId);
+      if (event) setAttendingList((prev) => [...prev, event]);
+    }
+
+    setRemoving((prev) => { const n = new Set(prev); n.delete(`${eventId}-attending`); return n; });
+    router.refresh();
+  }
 
   return (
     <>
@@ -144,7 +199,40 @@ export default function MyEventsClient({ attending: initialAttending, starred: i
           starredIds={starredIds}
           removing={removing}
           onToggle={toggleInteraction}
+          attendedDates={attendedDates}
         />
+      )}
+
+      {/* Date picker modal for multi-day events */}
+      {datePickerEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setDatePickerEvent(null)}>
+          <div className="w-72 rounded-xl border border-gray-200 bg-white py-2 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 pb-2 border-b border-gray-100">
+              <span className="text-sm font-semibold text-gray-700">Which day are you going?</span>
+              <button
+                onClick={() => setDatePickerEvent(null)}
+                className="rounded p-0.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="px-4 pt-2 pb-1">
+              <p className="text-xs text-gray-500 truncate">{datePickerEvent.name}</p>
+            </div>
+            <div className="max-h-48 overflow-y-auto py-1">
+              {getDateRange(datePickerEvent.start_date, datePickerEvent.end_date!).map((date) => (
+                <button
+                  key={date}
+                  onClick={() => handleDatePickerSelect(date)}
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                >
+                  <CalendarPlus className="h-4 w-4 text-gray-400" />
+                  {formatShortDate(date)}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
@@ -317,9 +405,11 @@ function MiniEventRow({
 // Calendar View (with fixed multi-day events)
 // -----------------------------------------------
 
-type CalendarProps = ListProps;
+type CalendarProps = ListProps & {
+  attendedDates: Record<string, string>;
+};
 
-function MyEventsCalendar({ attending, starred, attendingIds, starredIds, removing, onToggle }: CalendarProps) {
+function MyEventsCalendar({ attending, starred, attendingIds, starredIds, removing, onToggle, attendedDates }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -349,16 +439,30 @@ function MyEventsCalendar({ attending, starred, attendingIds, starredIds, removi
     return days;
   }, [year, month]);
 
-  // Group events by date — FIXED: long-span events show weekends only
+  // Group events by date — attending events use attended_date, starred use full range
   const eventsByDate = useMemo(() => {
     const map: Record<string, Event[]> = {};
 
     for (const e of allEvents) {
+      const isAttending = attendingIds.has(e.id);
+
+      // If user is attending and has a specific attended_date, show only on that date
+      if (isAttending && attendedDates[e.id]) {
+        const key = attendedDates[e.id];
+        // Check if this date falls within the current month view
+        const d = new Date(key + "T00:00:00");
+        if (d.getFullYear() === year && d.getMonth() === month) {
+          if (!map[key]) map[key] = [];
+          map[key].push(e);
+        }
+        continue;
+      }
+
+      // For starred events (or attending without a date), use the event's date range
       const start = new Date(e.start_date + "T00:00:00");
       const end = e.end_date ? new Date(e.end_date + "T00:00:00") : start;
       const diffDays = Math.round((end.getTime() - start.getTime()) / 86400000);
 
-      // Clamp to current month boundaries
       const monthStart = new Date(year, month, 1);
       const monthEnd = new Date(year, month + 1, 0);
       const rangeStart = new Date(Math.max(start.getTime(), monthStart.getTime()));
@@ -369,8 +473,6 @@ function MyEventsCalendar({ attending, starred, attendingIds, starredIds, removi
         const dayOfWeek = cursor.getDay();
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
-        // Short spans (≤7 days): show every day
-        // Long spans (>7 days): show weekends only
         if (diffDays <= 7 || isWeekend) {
           const key = cursor.toISOString().split("T")[0];
           if (!map[key]) map[key] = [];
@@ -392,7 +494,7 @@ function MyEventsCalendar({ attending, starred, attendingIds, starredIds, removi
     }
 
     return map;
-  }, [allEvents, year, month, attendingIds]);
+  }, [allEvents, year, month, attendingIds, attendedDates]);
 
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;

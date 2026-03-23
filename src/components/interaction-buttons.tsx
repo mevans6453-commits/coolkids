@@ -128,9 +128,14 @@ export default function InteractionButtons({
         setCount((c) => (isActive ? c + 1 : c - 1));
       }
     } else {
+      const insertData: Record<string, string> = { user_id: user.id, event_id: eventId, interaction_type: type };
+      // For single-day attending, save the start_date as attended_date
+      if (type === "attending" && event?.start_date) {
+        insertData.attended_date = event.start_date;
+      }
       const { error } = await supabase
         .from("user_event_interactions")
-        .insert({ user_id: user.id, event_id: eventId, interaction_type: type });
+        .insert(insertData);
 
       if (error) {
         setActive(isActive);
@@ -150,7 +155,7 @@ export default function InteractionButtons({
 
     const { error } = await supabase
       .from("user_event_interactions")
-      .insert({ user_id: user.id, event_id: eventId, interaction_type: "attending" });
+      .insert({ user_id: user.id, event_id: eventId, interaction_type: "attending", attended_date: date });
 
     if (error) {
       setAttending(false);

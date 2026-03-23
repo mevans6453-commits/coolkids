@@ -3,7 +3,6 @@ import { MapPin, ExternalLink } from "lucide-react";
 import { formatDateRange } from "@/lib/event-utils";
 import { decodeHtmlEntities } from "@/lib/html-utils";
 import { getCategoryBadgeClasses } from "@/lib/category-colors";
-import ExpandableDateRange from "./expandable-date-range";
 import InteractionButtons from "./interaction-buttons";
 import EventActions from "./event-actions";
 
@@ -55,7 +54,9 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
         <div className="flex items-start gap-3 sm:gap-4">
           {/* Date column — desktop only */}
           <div className="hidden w-36 flex-shrink-0 pt-0.5 text-center sm:block">
-            <ExpandableDateRange event={event} />
+            <div className="text-sm font-bold text-[var(--primary)] whitespace-nowrap">
+              {formatDateRange(event.start_date, event.end_date)}
+            </div>
             {event.start_time && (
               <div className="text-xs text-gray-500">{event.start_time}</div>
             )}
@@ -171,7 +172,9 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
         <div className="mt-auto space-y-2 pt-4 text-sm text-gray-500">
           <div className="flex items-start gap-2">
             <div>
-              <ExpandableDateRange event={event} />
+              <div className="text-sm font-bold text-[var(--primary)] whitespace-nowrap">
+                {formatDateRange(event.start_date, event.end_date)}
+              </div>
               {event.start_time && <span className="text-sm text-gray-500"> {event.start_time}</span>}
             </div>
           </div>
