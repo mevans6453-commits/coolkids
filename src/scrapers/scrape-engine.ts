@@ -16,9 +16,16 @@ import { ALL_STRATEGIES, getStrategy } from "./strategies";
 import { getAllVenueConfigs } from "./venues";
 import { validateScrapedEvents } from "./parse-utils";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+let _supabase: ReturnType<typeof createClient> | null = null;
+function getSupabase() {
+  if (!_supabase) {
+    _supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+  }
+  return _supabase;
+}
 
 // -----------------------------------------------
 // Types
@@ -264,7 +271,7 @@ async function scrapeVenue(
     // (prevents both "hours" and per-day "event" entries existing for same name)
     if (validation.consolidated.length > 0) {
       for (const c of validation.consolidated) {
-        const { error } = await supabase
+        const { error } = await getSupabase()
           .from("events")
           .delete()
           .eq("venue_id", config.venue_id)
@@ -325,7 +332,7 @@ async function buildVenueConfigs(venueIds?: string[]): Promise<VenueConfig[]> {
   const hardcodedIds = new Set(hardcoded.map((c) => c.venue_id));
 
   // Fetch all venues from DB that have a scrape_url
-  const { data: dbVenues } = await supabase
+  const { data: dbVenues } = await getSupabase()
     .from("venues")
     .select("id, name, scrape_url, scrape_method, preferred_strategy, categories")
     .not("scrape_url", "is", null)
@@ -367,7 +374,7 @@ async function buildVenueConfigs(venueIds?: string[]): Promise<VenueConfig[]> {
 // -----------------------------------------------
 
 async function logScrapeRun(venueId: string, attempt: StrategyAttempt): Promise<void> {
-  const { error } = await supabase.from("scrape_runs").insert({
+  const { error } = await getSupabase().from("scrape_runs").insert({
     venue_id: venueId,
     strategy: attempt.strategy,
     events_found: attempt.events_found,
@@ -383,7 +390,7 @@ async function logScrapeRun(venueId: string, attempt: StrategyAttempt): Promise<
 }
 
 async function updatePreferredStrategy(venueId: string, strategy: string): Promise<void> {
-  const { error } = await supabase
+  const { error } = await getSupabase()
     .from("venues")
     .update({ preferred_strategy: strategy })
     .eq("id", venueId);
@@ -407,7 +414,7 @@ async function saveEvents(venueId: string, events: ScrapedEvent[]): Promise<numb
     if (!event.cost && !event.is_free && event.cost_min === null && event.cost_max === null && !event.pricing_notes) {
       event.pricing_notes = "Check venue website for pricing";
     }
-    const { data: existing } = await supabase
+    const { data: existing } = await getSupabase()
       .from("events")
       .select("id")
       .eq("venue_id", venueId)
@@ -417,7 +424,7 @@ async function saveEvents(venueId: string, events: ScrapedEvent[]): Promise<numb
 
     if (existing && existing.length > 0) {
       // Check if event_type was manually set to something the scraper wouldn't produce
-      const { data: current } = await supabase
+      const { data: current } = await getSupabase()
         .from("events")
         .select("event_type, expected_attendance")
         .eq("id", existing[0].id)
@@ -432,7 +439,7 @@ async function saveEvents(venueId: string, events: ScrapedEvent[]): Promise<numb
         ? undefined // Don't overwrite existing reason
         : notForKidsCheck.flagged ? notForKidsCheck.reason : undefined;
 
-      const { error } = await supabase
+      const { error } = await getSupabase()
         .from("events")
         .update({
           description: event.description,
@@ -464,7 +471,7 @@ async function saveEvents(venueId: string, events: ScrapedEvent[]): Promise<numb
         console.error(`  [DB] Update failed for "${event.name}": ${error.message}`);
       }
     } else {
-      const { error } = await supabase.from("events").insert({
+      const { error } = await getSupabase().from("events").insert({
         venue_id: venueId,
         name: event.name,
         description: event.description,
