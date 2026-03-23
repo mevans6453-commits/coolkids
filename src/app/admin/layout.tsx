@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import AdminNav from "@/components/admin/admin-nav";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "mevans6453@gmail.com";
 
@@ -21,5 +22,10 @@ export default async function AdminLayout({
     redirect("/");
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <AdminNav />
+      {children}
+    </>
+  );
 }
