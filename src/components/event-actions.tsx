@@ -5,13 +5,15 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "./auth-provider";
 import { buildGoogleCalendarUrl } from "@/lib/google-calendar";
-import { MoreHorizontal, CalendarPlus, Share2, EyeOff, Flag, Check } from "lucide-react";
+import { MoreHorizontal, CalendarPlus, Share2, EyeOff, Flag, Check, ShieldAlert } from "lucide-react";
 import type { Event } from "@/lib/types";
 
 type Props = {
   event: Event;
   onHide?: (eventId: string) => void;
 };
+
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "";
 
 export default function EventActions({ event, onHide }: Props) {
   const supabase = useMemo(() => createClient(), []);
@@ -20,7 +22,10 @@ export default function EventActions({ event, onHide }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [reported, setReported] = useState(false);
   const [shared, setShared] = useState(false);
+  const [flaggedNotForKids, setFlaggedNotForKids] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const isAdmin = user?.email === ADMIN_EMAIL;
 
   // Close menu on outside click
   useEffect(() => {
@@ -86,6 +91,40 @@ export default function EventActions({ event, onHide }: Props) {
     setReported(true);
   }
 
+  async function handleNotForKids() {
+    if (!user) { router.push("/subscribe"); return; }
+    setMenuOpen(false);
+
+    if (isAdmin) {
+      // Admin: immediately flag the event
+      await supabase.from("events").update({ event_type: "not_for_kids" }).eq("id", event.id);
+      setFlaggedNotForKids(true);
+      onHide?.(event.id);
+    } else {
+      // Regular user: record a report
+      await supabase.from("user_event_interactions").insert({
+        user_id: user.id,
+        event_id: event.id,
+        interaction_type: "not_for_kids_report",
+      });
+
+      // Check if 3+ users have now reported this event
+      const { count } = await supabase
+        .from("user_event_interactions")
+        .select("*", { count: "exact", head: true })
+        .eq("event_id", event.id)
+        .eq("interaction_type", "not_for_kids_report");
+
+      if (count && count >= 3) {
+        // Auto-flag the event
+        await supabase.from("events").update({ event_type: "not_for_kids" }).eq("id", event.id);
+        onHide?.(event.id);
+      }
+
+      setFlaggedNotForKids(true);
+    }
+  }
+
   return (
     <div className="relative" ref={menuRef}>
       <button
@@ -113,6 +152,14 @@ export default function EventActions({ event, onHide }: Props) {
             Add to calendar
           </button>
           <div className="mx-3 my-1 border-t border-gray-100" />
+          <button
+            onClick={handleNotForKids}
+            disabled={flaggedNotForKids}
+            className="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm text-gray-500 hover:bg-gray-50 disabled:text-gray-300 transition-colors"
+          >
+            <ShieldAlert className={`h-4 w-4 ${flaggedNotForKids ? "text-orange-300" : "text-orange-400"}`} />
+            {flaggedNotForKids ? (isAdmin ? "Flagged!" : "Reported") : "Not for kids"}
+          </button>
           <button
             onClick={handleHide}
             className="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm text-gray-500 hover:bg-gray-50 transition-colors"
