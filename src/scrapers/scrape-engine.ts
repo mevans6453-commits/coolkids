@@ -399,6 +399,18 @@ async function saveEvents(venueId: string, events: ScrapedEvent[]): Promise<numb
       .limit(1);
 
     if (existing && existing.length > 0) {
+      // Check if event_type was manually set to something the scraper wouldn't produce
+      const { data: current } = await supabase
+        .from("events")
+        .select("event_type")
+        .eq("id", existing[0].id)
+        .single();
+      
+      // Preserve manual edits: if admin set it to 'not_for_kids', don't overwrite
+      const preservedEventType = current?.event_type === "not_for_kids" 
+        ? "not_for_kids" 
+        : event.event_type;
+
       const { error } = await supabase
         .from("events")
         .update({
@@ -413,7 +425,7 @@ async function saveEvents(venueId: string, events: ScrapedEvent[]): Promise<numb
           pricing_notes: event.pricing_notes,
           age_range_min: event.age_range_min,
           age_range_max: event.age_range_max,
-          event_type: event.event_type,
+          event_type: preservedEventType,
           categories: event.categories,
           source_url: event.source_url,
           image_url: event.image_url,
