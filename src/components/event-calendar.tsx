@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Star, Hand } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "./auth-provider";
 import type { Event } from "@/lib/types";
 
 type Props = {
@@ -11,7 +12,8 @@ type Props = {
 };
 
 export default function EventCalendar({ events, interactionCounts }: Props) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+  const { user } = useAuth();
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -20,18 +22,16 @@ export default function EventCalendar({ events, interactionCounts }: Props) {
 
   // Load user's attending events
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      supabase
-        .from("user_event_interactions")
-        .select("event_id")
-        .eq("user_id", user.id)
-        .eq("interaction_type", "attending")
-        .then(({ data }) => {
-          if (data) setAttendingIds(new Set(data.map((d) => d.event_id)));
-        });
-    });
-  }, [supabase]);
+    if (!user) return;
+    supabase
+      .from("user_event_interactions")
+      .select("event_id")
+      .eq("user_id", user.id)
+      .eq("interaction_type", "attending")
+      .then(({ data }) => {
+        if (data) setAttendingIds(new Set(data.map((d) => d.event_id)));
+      });
+  }, [supabase, user]);
 
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();

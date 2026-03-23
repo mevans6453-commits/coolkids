@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "./auth-provider";
 import { Send, CheckCircle } from "lucide-react";
 
 export default function SuggestVenueForm() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+  const { user } = useAuth();
   const [email, setEmail] = useState("");
   const [venueName, setVenueName] = useState("");
   const [venueUrl, setVenueUrl] = useState("");
@@ -17,10 +19,8 @@ export default function SuggestVenueForm() {
 
   // Auto-fill email if logged in
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user?.email) setEmail(user.email);
-    });
-  }, [supabase]);
+    if (user?.email) setEmail(user.email);
+  }, [user]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

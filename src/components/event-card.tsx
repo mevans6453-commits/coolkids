@@ -124,14 +124,14 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
 
             {/* Interaction buttons — mobile */}
             <div className="mt-2 flex items-center gap-2 sm:hidden">
-              <InteractionButtons eventId={event.id} initialStarCount={starCount} initialAttendingCount={attendingCount} />
+              <InteractionButtons eventId={event.id} initialStarCount={starCount} initialAttendingCount={attendingCount} event={event} />
               <EventActions event={event} onHide={onHide} />
             </div>
           </div>
 
           {/* Actions column — desktop only */}
           <div className="hidden flex-shrink-0 items-center gap-1 sm:flex">
-            <InteractionButtons eventId={event.id} initialStarCount={starCount} initialAttendingCount={attendingCount} />
+            <InteractionButtons eventId={event.id} initialStarCount={starCount} initialAttendingCount={attendingCount} event={event} />
             <EventActions event={event} onHide={onHide} />
           </div>
         </div>
@@ -202,7 +202,7 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
       </div>
 
       <div className="flex items-center gap-2 border-t border-gray-100 px-5 py-3">
-        <InteractionButtons eventId={event.id} initialStarCount={starCount} initialAttendingCount={attendingCount} />
+        <InteractionButtons eventId={event.id} initialStarCount={starCount} initialAttendingCount={attendingCount} event={event} />
         <div className="ml-auto">
           <EventActions event={event} onHide={onHide} />
         </div>

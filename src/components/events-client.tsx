@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "./auth-provider";
 import type { Event, AgeFilter } from "@/lib/types";
 import { AGE_FILTER_RANGES } from "@/lib/types";
 import { ChevronDown } from "lucide-react";
@@ -18,7 +19,8 @@ type Props = {
 };
 
 export default function EventsClient({ events, interactionCounts }: Props) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+  const { user } = useAuth();
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [hiddenVenueIds, setHiddenVenueIds] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<SortOption>("date");
@@ -52,26 +54,24 @@ export default function EventsClient({ events, interactionCounts }: Props) {
 
   // Load user's hidden events + hidden venues on mount
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      supabase
-        .from("user_event_interactions")
-        .select("event_id")
-        .eq("user_id", user.id)
-        .eq("interaction_type", "hidden")
-        .then(({ data }) => {
-          if (data) setHiddenIds(new Set(data.map((d) => d.event_id)));
-        });
-      supabase
-        .from("user_venue_preferences")
-        .select("venue_id")
-        .eq("user_id", user.id)
-        .eq("is_hidden", true)
-        .then(({ data }) => {
-          if (data) setHiddenVenueIds(new Set(data.map((d) => d.venue_id)));
-        });
-    });
-  }, [supabase]);
+    if (!user) return;
+    supabase
+      .from("user_event_interactions")
+      .select("event_id")
+      .eq("user_id", user.id)
+      .eq("interaction_type", "hidden")
+      .then(({ data }) => {
+        if (data) setHiddenIds(new Set(data.map((d) => d.event_id)));
+      });
+    supabase
+      .from("user_venue_preferences")
+      .select("venue_id")
+      .eq("user_id", user.id)
+      .eq("is_hidden", true)
+      .then(({ data }) => {
+        if (data) setHiddenVenueIds(new Set(data.map((d) => d.venue_id)));
+      });
+  }, [supabase, user]);
 
   const handleHide = useCallback((eventId: string) => {
     setHiddenIds((prev) => new Set(prev).add(eventId));

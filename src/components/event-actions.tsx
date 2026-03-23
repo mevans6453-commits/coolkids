@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "./auth-provider";
 import { buildGoogleCalendarUrl } from "@/lib/google-calendar";
 import { MoreHorizontal, CalendarPlus, Share2, EyeOff, Flag, Check } from "lucide-react";
 import type { Event } from "@/lib/types";
-import type { User } from "@supabase/supabase-js";
 
 type Props = {
   event: Event;
@@ -14,17 +14,13 @@ type Props = {
 };
 
 export default function EventActions({ event, onHide }: Props) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+  const { user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [reported, setReported] = useState(false);
   const [shared, setShared] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
-  }, [supabase]);
 
   // Close menu on outside click
   useEffect(() => {

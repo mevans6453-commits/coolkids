@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import AuthProvider from "@/components/auth-provider";
 import AuthButton from "@/components/auth-button";
 import MobileNav from "@/components/mobile-nav";
 import "./globals.css";
@@ -17,6 +18,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-white antialiased">
+        <AuthProvider>
         {/* Navigation header */}
         <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-white/95 backdrop-blur">
           <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
@@ -120,6 +122,7 @@ export default function RootLayout({
             </div>
           </div>
         </footer>
+        </AuthProvider>
       </body>
     </html>
   );

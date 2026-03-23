@@ -1,37 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import type { User } from "@supabase/supabase-js";
+import { useAuth } from "./auth-provider";
 
 export default function AuthButton() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, authLoaded, signOut } = useAuth();
   const router = useRouter();
-  const supabase = createClient();
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user);
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null);
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, [supabase]);
 
   async function handleSignOut() {
-    await supabase.auth.signOut();
+    await signOut();
     router.refresh();
   }
 
-  if (loading) {
+  if (!authLoaded) {
     return (
       <div className="h-9 w-20 animate-pulse rounded-full bg-gray-200" />
     );

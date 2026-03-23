@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "./auth-provider";
 import type { Venue } from "@/lib/types";
 import { Eye, EyeOff, LogIn, Search, ExternalLink } from "lucide-react";
 import { getCategoryBadgeClasses } from "@/lib/category-colors";
@@ -14,31 +15,25 @@ type Props = {
 };
 
 export default function VenuesClient({ venues, eventCounts }: Props) {
-  const supabase = createClient();
-  const [user, setUser] = useState<{ id: string } | null>(null);
-  const [authLoaded, setAuthLoaded] = useState(false);
+  const supabase = useMemo(() => createClient(), []);
+  const { user, authLoaded } = useAuth();
   const [hiddenVenueIds, setHiddenVenueIds] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<VenueFilter>("all");
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Load auth + hidden venues on mount
+  // Load hidden venues when user becomes available
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user: u } }) => {
-      setUser(u ? { id: u.id } : null);
-      setAuthLoaded(true);
-      if (u) {
-        supabase
-          .from("user_venue_preferences")
-          .select("venue_id")
-          .eq("user_id", u.id)
-          .eq("is_hidden", true)
-          .then(({ data }) => {
-            if (data) setHiddenVenueIds(new Set(data.map((d) => d.venue_id)));
-          });
-      }
-    });
-  }, [supabase]);
+    if (!user) return;
+    supabase
+      .from("user_venue_preferences")
+      .select("venue_id")
+      .eq("user_id", user.id)
+      .eq("is_hidden", true)
+      .then(({ data }) => {
+        if (data) setHiddenVenueIds(new Set(data.map((d) => d.venue_id)));
+      });
+  }, [supabase, user]);
 
   // Toggle hide/show venue
   async function toggleHide(venueId: string) {

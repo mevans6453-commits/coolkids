@@ -366,7 +366,7 @@ function FeaturedEventCard({
         </div>
 
         <div className="mt-3 flex items-center gap-1 border-t border-gray-100 pt-3">
-          <InteractionButtons eventId={event.id} initialStarCount={counts.stars} initialAttendingCount={counts.attending} />
+          <InteractionButtons eventId={event.id} initialStarCount={counts.stars} initialAttendingCount={counts.attending} event={event} />
           <div className="ml-auto">
             <EventActions event={event} />
           </div>
@@ -424,7 +424,7 @@ function CompactEventRow({
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
         )}
-        <InteractionButtons eventId={event.id} initialStarCount={c.stars} initialAttendingCount={c.attending} />
+        <InteractionButtons eventId={event.id} initialStarCount={c.stars} initialAttendingCount={c.attending} event={event} />
         <EventActions event={event} />
       </div>
 

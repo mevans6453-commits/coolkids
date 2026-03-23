@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "./auth-provider";
 import {
   MapPin, Star, Hand, List, CalendarDays,
   ChevronLeft, ChevronRight, X,
@@ -26,7 +27,8 @@ type ViewMode = "list" | "calendar";
 // -----------------------------------------------
 
 export default function MyEventsClient({ attending: initialAttending, starred: initialStarred }: Props) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+  const { user } = useAuth();
   const router = useRouter();
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [attendingList, setAttendingList] = useState<Event[]>(initialAttending);
@@ -50,7 +52,6 @@ export default function MyEventsClient({ attending: initialAttending, starred: i
 
       setRemoving((prev) => new Set(prev).add(`${eventId}-${type}`));
 
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setRemoving((prev) => { const n = new Set(prev); n.delete(`${eventId}-${type}`); return n; });
         return;
@@ -100,7 +101,7 @@ export default function MyEventsClient({ attending: initialAttending, starred: i
       // Refresh server data to stay in sync
       router.refresh();
     },
-    [supabase, router, attendingIds, starredIds, attendingList, starredList]
+    [supabase, router, user, attendingIds, starredIds, attendingList, starredList]
   );
 
   return (
