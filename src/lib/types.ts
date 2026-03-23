@@ -64,6 +64,8 @@ export type Event = {
   updated_at: string;
   // Joined data (when we fetch events with venue info)
   venue?: Venue;
+  // Display-only: populated by mergeConsecutiveEvents for recurring events
+  recurring_dates?: { date: string; time: string | null }[];
 };
 
 export type AgeFilter = "all" | "toddler" | "preschool" | "elementary" | "tween-teen";

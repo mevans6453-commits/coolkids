@@ -1,12 +1,15 @@
 import type { Event } from "./types";
 
 /**
- * Merge consecutive-day events with the same name + venue into a single event
- * with a date range. For example, "Museums On Us Weekend" on Apr 4 and Apr 5
- * becomes a single event with start_date=Apr 4, end_date=Apr 5.
+ * Merge same-name events at the same venue into a single display entry.
  *
- * Only merges events that are on consecutive calendar days (1-day gap).
- * Events on the same day but different weeks (recurring) are NOT merged.
+ * Two merge modes:
+ * 1. Consecutive days (e.g. "Museums On Us" Apr 4 + Apr 5 → "Apr 4–5")
+ * 2. Recurring dates (e.g. "Morning Hikes" Apr 4, Apr 26, May 16 → one card
+ *    with recurring_dates array for expandable display)
+ *
+ * The merged event uses the earliest start_date and latest end_date.
+ * Non-consecutive recurring dates are stored in recurring_dates for display.
  */
 export function mergeConsecutiveEvents(events: Event[]): Event[] {
   if (events.length === 0) return events;
@@ -19,7 +22,7 @@ export function mergeConsecutiveEvents(events: Event[]): Event[] {
     groups.get(key)!.push(e);
   }
 
-  const result: Event[] = [];
+  const mergedEvents: Event[] = [];
   const mergedIds = new Set<string>();
 
   for (const [, group] of groups) {
@@ -28,36 +31,47 @@ export function mergeConsecutiveEvents(events: Event[]): Event[] {
     // Sort group by start_date
     const sorted = [...group].sort((a, b) => a.start_date.localeCompare(b.start_date));
 
-    // Find consecutive runs
-    let i = 0;
-    while (i < sorted.length) {
-      let j = i;
-      while (j + 1 < sorted.length && isConsecutiveDay(sorted[j].start_date, sorted[j + 1].start_date)) {
-        j++;
+    // Check if ALL dates are consecutive (multi-day event like a weekend festival)
+    let allConsecutive = true;
+    for (let i = 0; i < sorted.length - 1; i++) {
+      if (!isConsecutiveDay(sorted[i].start_date, sorted[i + 1].start_date)) {
+        allConsecutive = false;
+        break;
       }
+    }
 
-      if (j > i) {
-        // Found a consecutive run — merge into the first event
-        const merged = { ...sorted[i] };
-        const lastDate = sorted[j].end_date || sorted[j].start_date;
-        merged.end_date = lastDate > merged.start_date ? lastDate : sorted[j].start_date;
-        result.push(merged);
-
-        // Mark all others as merged (to be removed)
-        for (let k = i + 1; k <= j; k++) {
-          mergedIds.add(sorted[k].id);
-        }
+    if (allConsecutive) {
+      // Consecutive days — merge into date range (Apr 4–5)
+      const merged = { ...sorted[0] };
+      const lastDate = sorted[sorted.length - 1].end_date || sorted[sorted.length - 1].start_date;
+      merged.end_date = lastDate > merged.start_date ? lastDate : sorted[sorted.length - 1].start_date;
+      mergedEvents.push(merged);
+      for (let k = 1; k < sorted.length; k++) {
+        mergedIds.add(sorted[k].id);
       }
-      i = j + 1;
+    } else {
+      // Recurring (non-consecutive) — merge into one card with recurring_dates
+      const merged: Event = {
+        ...sorted[0],
+        end_date: sorted[sorted.length - 1].end_date || sorted[sorted.length - 1].start_date,
+        is_recurring: true,
+        recurring_dates: sorted.map((e) => ({
+          date: e.start_date,
+          time: e.start_time || null,
+        })),
+      };
+      mergedEvents.push(merged);
+      for (let k = 1; k < sorted.length; k++) {
+        mergedIds.add(sorted[k].id);
+      }
     }
   }
 
   // Return: original events minus merged duplicates, plus merged events
   const withoutDupes = events.filter((e) => !mergedIds.has(e.id));
 
-  // Replace the original first-event with the merged version
   return withoutDupes.map((e) => {
-    const merged = result.find((m) => m.id === e.id);
+    const merged = mergedEvents.find((m) => m.id === e.id);
     return merged ?? e;
   });
 }
