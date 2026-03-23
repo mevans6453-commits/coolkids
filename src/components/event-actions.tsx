@@ -44,7 +44,7 @@ export default function EventActions({ event, onHide }: Props) {
   }
 
   async function handleShare() {
-    const url = typeof window !== "undefined" ? `${window.location.origin}/events` : "";
+    const url = typeof window !== "undefined" ? `${window.location.origin}/events?event=${event.id}` : "";
     const text = `Check out ${event.name}${event.venue ? ` at ${event.venue.name}` : ""} on CoolKids!`;
 
     if (typeof navigator !== "undefined" && navigator.share) {

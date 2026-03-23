@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Event } from "@/lib/types";
 import { Calendar } from "lucide-react";
@@ -62,7 +63,9 @@ export default async function EventsPage() {
       )}
 
       {events && events.length > 0 && (
-        <EventsClient events={events} interactionCounts={counts} />
+        <Suspense fallback={<div className="mt-6 text-gray-500">Loading events...</div>}>
+          <EventsClient events={events} interactionCounts={counts} />
+        </Suspense>
       )}
     </div>
   );

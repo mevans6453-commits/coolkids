@@ -9,12 +9,25 @@ export default async function ThisWeekendPage() {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
   // Calculate this Saturday + Sunday
+  // On Saturday: we're on Saturday, Sunday is tomorrow
+  // On Sunday: Saturday was yesterday, we're on Sunday — weekend isn't over until Monday
+  // Mon–Fri: look ahead to the coming Saturday
   const dayOfWeek = today.getDay(); // 0=Sun, 6=Sat
-  const daysUntilSaturday = dayOfWeek === 6 ? 0 : dayOfWeek === 0 ? 6 : 6 - dayOfWeek;
   const saturday = new Date(today);
-  saturday.setDate(today.getDate() + daysUntilSaturday);
-  const sunday = new Date(saturday);
-  sunday.setDate(saturday.getDate() + 1);
+  const sunday = new Date(today);
+
+  if (dayOfWeek === 6) {
+    // It's Saturday — today + tomorrow
+    sunday.setDate(today.getDate() + 1);
+  } else if (dayOfWeek === 0) {
+    // It's Sunday — yesterday + today (the weekend isn't over!)
+    saturday.setDate(today.getDate() - 1);
+  } else {
+    // Mon–Fri — look ahead to coming Saturday
+    const daysUntilSaturday = 6 - dayOfWeek;
+    saturday.setDate(today.getDate() + daysUntilSaturday);
+    sunday.setDate(saturday.getDate() + 1);
+  }
 
   // Format dates for Supabase queries (YYYY-MM-DD)
   const satStr = saturday.toISOString().split("T")[0];
@@ -83,6 +96,9 @@ export default async function ThisWeekendPage() {
     else if (i.interaction_type === "attending") interactionCounts[i.event_id].attending++;
   });
 
+  const todayStr = today.toISOString().split("T")[0];
+  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
   return (
     <ThisWeekendClient
       weekendEvents={weekendEvents}
@@ -90,6 +106,8 @@ export default async function ThisWeekendPage() {
       interactionCounts={interactionCounts}
       saturdayStr={satStr}
       sundayStr={sunStr}
+      todayStr={todayStr}
+      isWeekend={isWeekend}
       todaysJoke={todaysJoke}
     />
   );

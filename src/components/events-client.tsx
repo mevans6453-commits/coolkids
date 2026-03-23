@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Event, AgeFilter } from "@/lib/types";
 import { AGE_FILTER_RANGES } from "@/lib/types";
@@ -29,6 +30,25 @@ export default function EventsClient({ events, interactionCounts }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [groupBy, setGroupBy] = useState<GroupBy>("none");
   const [expandedVenues, setExpandedVenues] = useState<Set<string>>(new Set());
+  const [highlightedEventId, setHighlightedEventId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+
+  // Handle ?event=UUID param — scroll to and highlight a shared event
+  useEffect(() => {
+    const eventId = searchParams.get("event");
+    if (!eventId) return;
+    setHighlightedEventId(eventId);
+    // Wait for render then scroll
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`event-${eventId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 500);
+    // Clear highlight after 4 seconds
+    const clearTimer = setTimeout(() => setHighlightedEventId(null), 4000);
+    return () => { clearTimeout(timer); clearTimeout(clearTimer); };
+  }, [searchParams]);
 
   // Load user's hidden events + hidden venues on mount
   useEffect(() => {
@@ -149,12 +169,20 @@ export default function EventsClient({ events, interactionCounts }: Props) {
       result = result.filter((e) => e.event_type !== "hours");
     }
 
-    // Age filter — show events that OVERLAP the selected range, plus null ages (for everyone)
+    // Age filter — show events that OVERLAP the selected range
+    // Null-age events only pass if they have kid-friendly categories
     if (ageFilter !== "all") {
       const range = AGE_FILTER_RANGES[ageFilter];
+      const KID_FRIENDLY_CATS = new Set([
+        "farm", "zoo", "park", "museum", "garden", "outdoor", "seasonal",
+        "education", "arts", "aquatic", "festival", "sports", "market",
+      ]);
       if (range) {
         result = result.filter((e) => {
-          if (e.age_range_min === null && e.age_range_max === null) return true;
+          if (e.age_range_min === null && e.age_range_max === null) {
+            // No age data — only include if at least one category is kid-friendly
+            return (e.categories || []).some((cat) => KID_FRIENDLY_CATS.has(cat.toLowerCase()));
+          }
           const eMin = e.age_range_min ?? 0;
           const eMax = e.age_range_max ?? 99;
           return eMin <= range.max && eMax >= range.min;
@@ -219,14 +247,21 @@ export default function EventsClient({ events, interactionCounts }: Props) {
   // Render a flat list of event cards
   function renderEventList(evts: Event[], view: "list" | "grid") {
     return evts.map((event) => (
-      <EventCard
+      <div
         key={event.id}
-        event={event}
-        starCount={interactionCounts[event.id]?.stars ?? 0}
-        attendingCount={interactionCounts[event.id]?.attending ?? 0}
-        onHide={handleHide}
-        view={view}
-      />
+        id={`event-${event.id}`}
+        className={highlightedEventId === event.id
+          ? "rounded-xl ring-2 ring-blue-500 ring-offset-2 animate-pulse transition-all duration-500"
+          : ""}
+      >
+        <EventCard
+          event={event}
+          starCount={interactionCounts[event.id]?.stars ?? 0}
+          attendingCount={interactionCounts[event.id]?.attending ?? 0}
+          onHide={handleHide}
+          view={view}
+        />
+      </div>
     ));
   }
 

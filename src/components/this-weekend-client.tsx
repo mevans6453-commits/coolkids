@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { Event, DadJoke as DadJokeType } from "@/lib/types";
 import { decodeHtmlEntities } from "@/lib/html-utils";
 import { getCategoryBadgeClasses } from "@/lib/category-colors";
-import { MapPin, ExternalLink, Calendar, ChevronRight, Sparkles } from "lucide-react";
+import { MapPin, ExternalLink, Calendar, ChevronRight, Sparkles, Clock } from "lucide-react";
 import InteractionButtons from "./interaction-buttons";
 import EventActions from "./event-actions";
 import DadJoke from "./dad-joke";
@@ -15,6 +15,8 @@ type Props = {
   interactionCounts: Record<string, { stars: number; attending: number }>;
   saturdayStr: string;
   sundayStr: string;
+  todayStr: string;
+  isWeekend: boolean;
   todaysJoke: DadJokeType | null;
 };
 
@@ -65,14 +67,18 @@ export default function ThisWeekendClient({
   interactionCounts,
   saturdayStr,
   sundayStr,
+  todayStr,
+  isWeekend,
   todaysJoke,
 }: Props) {
   // Split weekend events into Saturday and Sunday
   const satDate = new Date(saturdayStr + "T00:00:00").getTime();
   const sunDate = new Date(sundayStr + "T00:00:00").getTime();
+  const todayDate = new Date(todayStr + "T00:00:00").getTime();
 
   const saturdayEvents: Event[] = [];
   const sundayEvents: Event[] = [];
+  const todayEvents: Event[] = [];
 
   weekendEvents.forEach((e) => {
     const start = new Date(e.start_date + "T00:00:00").getTime();
@@ -81,6 +87,8 @@ export default function ThisWeekendClient({
     // Multi-day events appear on both days
     if (start <= satDate && end >= satDate) saturdayEvents.push(e);
     if (start <= sunDate && end >= sunDate) sundayEvents.push(e);
+    // Events happening today (only on weekends)
+    if (isWeekend && start <= todayDate && end >= todayDate) todayEvents.push(e);
   });
 
   // Separate featured from community events
@@ -112,6 +120,34 @@ export default function ThisWeekendClient({
           </p>
         </div>
       </section>
+
+      {/* Happening Today — only shown on weekends when there are events today */}
+      {isWeekend && todayEvents.length > 0 && (
+        <section className="mx-auto max-w-5xl px-4 pt-10 pb-4">
+          <div className="mb-4">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+              </span>
+              <h2 className="text-xl font-bold text-gray-900">Happening Today</h2>
+              <span className="text-sm text-gray-500">{formatDayLabel(todayStr)}</span>
+            </div>
+            <p className="mt-1 text-sm text-gray-500 ml-5">
+              {todayEvents.length} event{todayEvents.length !== 1 ? "s" : ""} you can go to right now
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {todayEvents.map((event) => (
+              <FeaturedEventCard
+                key={`today-${event.id}`}
+                event={event}
+                counts={interactionCounts[event.id] || { stars: 0, attending: 0 }}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Weekend Events */}
       <section className="mx-auto max-w-5xl px-4 py-10">
