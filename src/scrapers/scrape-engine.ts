@@ -194,11 +194,20 @@ async function scrapeVenue(
 
       console.log(`[Engine]   Trying: ${strategy.name}`);
       const startMs = Date.now();
+      // Chromium needs more time (JS rendering)
+      const timeout = strategy.name === "apify-chromium" ? 120000 : 30000;
 
       try {
-        const result = await withTimeout(strategy.scrape(config), 30000, `${strategy.name} strategy`);
+        const result = await withTimeout(strategy.scrape(config), timeout, `${strategy.name} strategy`);
         const durationMs = Date.now() - startMs;
         const eventsFound = result.events.length;
+
+        // Pre-validate: only count events that will survive validation (not past, not junk)
+        let validCount = eventsFound;
+        if (eventsFound > 0) {
+          const preValidation = validateScrapedEvents(result.events, config.venue_name);
+          validCount = preValidation.valid.length;
+        }
 
         const attempt: StrategyAttempt = {
           strategy: strategy.name,
@@ -211,10 +220,12 @@ async function scrapeVenue(
         attempts.push(attempt);
         await logScrapeRun(config.venue_id, attempt);
 
-        if (eventsFound > 0) {
+        if (validCount > 0) {
           winningStrategy = strategy.name;
           winningEvents = result.events;
-          break; // Found a winner
+          break; // Found a winner with events that will survive validation
+        } else if (eventsFound > 0) {
+          console.log(`[Engine]   ${strategy.name} found ${eventsFound} raw but 0 survived validation — continuing...`);
         }
       } catch (err) {
         const attempt: StrategyAttempt = {
