@@ -283,6 +283,20 @@ function VenueRow({
             {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             {venue.name}
           </button>
+          {venue.scrape_url ? (
+            <a
+              href={venue.scrape_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-4 flex items-center gap-0.5 text-[10px] text-blue-500 hover:text-blue-700 truncate max-w-[250px]"
+              title={venue.scrape_url}
+            >
+              <Link className="h-2.5 w-2.5 flex-shrink-0" />
+              {venue.scrape_url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 40)}
+            </a>
+          ) : (
+            <span className="ml-4 text-[10px] text-red-400 italic">No scrape URL — click to add</span>
+          )}
         </td>
         <td className="px-4 py-3">
           <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-mono">

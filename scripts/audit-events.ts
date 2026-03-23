@@ -1,5 +1,5 @@
 /**
- * Test scrape on Chattahoochee Nature Center with the new WordPress parser
+ * Fix Woodstock Arts URL and re-scrape
  */
 import { readFileSync } from "fs";
 import { resolve } from "path";
@@ -25,33 +25,26 @@ const supabase = createClient(
 );
 
 async function test() {
-  // First, update the scrape URL
-  const { error: updateErr } = await supabase
+  // Fix URL first
+  await supabase
     .from("venues")
-    .update({ scrape_url: "https://chattnaturecenter.org/all-events/" })
-    .ilike("name", "%chattahoochee nature%");
-  
-  if (updateErr) {
-    console.log("Error updating URL:", updateErr.message);
-    return;
-  }
-  console.log("✅ Updated scrape URL to /all-events/\n");
+    .update({ scrape_url: "https://woodstockarts.org/events/" })
+    .ilike("name", "%woodstock arts%");
+  console.log("✅ Updated Woodstock Arts URL to /events/\n");
 
-  // Find the venue
   const { data: venues } = await supabase
     .from("venues")
     .select("id, name, scrape_url")
-    .ilike("name", "%chattahoochee nature%")
+    .ilike("name", "%woodstock arts%")
     .limit(1);
 
   if (!venues || venues.length === 0) {
-    console.log("Venue not found!");
+    console.log("Not found!");
     return;
   }
 
   const venue = venues[0];
-  console.log(`Scraping: ${venue.name}`);
-  console.log(`URL: ${venue.scrape_url}\n`);
+  console.log(`Scraping: ${venue.name} (${venue.scrape_url})\n`);
 
   const { runScrapeAll } = await import("../src/scrapers/scrape-engine");
   const summary = await runScrapeAll([venue.id], true);
