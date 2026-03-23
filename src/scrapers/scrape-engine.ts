@@ -16,7 +16,8 @@ import { ALL_STRATEGIES, getStrategy } from "./strategies";
 import { getAllVenueConfigs } from "./venues";
 import { validateScrapedEvents } from "./parse-utils";
 
-let _supabase: ReturnType<typeof createClient> | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _supabase: any = null;
 function getSupabase() {
   if (!_supabase) {
     _supabase = createClient(
@@ -342,7 +343,8 @@ async function buildVenueConfigs(venueIds?: string[]): Promise<VenueConfig[]> {
 
   // Attach preferred_strategy from DB to hardcoded configs
   for (const config of configs) {
-    const dbVenue = dbVenues?.find((v) => v.id === config.venue_id);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbVenue = dbVenues?.find((v: any) => v.id === config.venue_id);
     if (dbVenue?.preferred_strategy) {
       config.preferred_strategy = dbVenue.preferred_strategy;
     }
@@ -355,7 +357,7 @@ async function buildVenueConfigs(venueIds?: string[]): Promise<VenueConfig[]> {
         venue_id: v.id,
         venue_name: v.name,
         scrape_url: v.scrape_url,
-        scrape_method: v.scrape_method || "apify",
+        scrape_method: (v.scrape_method || "apify") as VenueConfig["scrape_method"],
         preferred_strategy: v.preferred_strategy || null,
         default_categories: v.categories || [],
       });
