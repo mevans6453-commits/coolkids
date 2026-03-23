@@ -529,6 +529,8 @@ export function validateScrapedEvents(
       /^shows?\s*and\s*screenings$/i, /^calendar\s*of\s*events$/i,
       /^things\s*to\s*do$/i, /^plan\s*your\s*visit$/i, /^visit\s*us$/i,
       /^hours\s*(and|&)\s*(admission|info)/i, /^ticket\s*info/i,
+      /^event\s*(filters?|items?|list|results?)$/i, /^filter\s*events$/i,
+      /^load\s*more$/i, /^see\s*(all|more)\s*events$/i, /^view\s*(all|more)$/i,
       /^annual\s*report/i, /^about\s*(us)?$/i, /^contact(\s*us)?$/i,
       /^directions$/i, /^faq$/i, /^gift\s*(shop|card)/i, /^membership/i,
       /^privacy/i, /^terms/i, /^menu$/i, /^donate$/i, /^volunteer$/i,
