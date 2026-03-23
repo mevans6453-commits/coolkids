@@ -199,7 +199,8 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events }: Props) {
                 const venueEvents = eventsByVenue.get(venue.id) ?? [];
                 const eventCount = venueEvents.filter((e) => e.event_type !== "hours").length;
                 const hoursCount = venueEvents.filter((e) => e.event_type === "hours").length;
-                const status = run?.status === "empty" && eventCount > 0 ? "success" : (run?.status ?? "none");
+                const rawStatus = run?.status ?? "none";
+                const status = (rawStatus === "empty" || rawStatus === "none") && eventCount > 0 ? "success" : rawStatus;
                 const isExpanded = expandedVenue === venue.id;
                 const isScraping = scrapingIds.has(venue.id);
 
