@@ -2,9 +2,14 @@
 
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
+import { useAuth } from "./auth-provider";
+
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "";
 
 export default function MobileNav() {
   const [open, setOpen] = useState(false);
+  const { user } = useAuth();
+  const isAdmin = user?.email === ADMIN_EMAIL;
 
   return (
     <div className="sm:hidden">
@@ -54,6 +59,15 @@ export default function MobileNav() {
             >
               My Events
             </a>
+            {isAdmin && (
+              <a
+                href="/admin/scraping"
+                onClick={() => setOpen(false)}
+                className="rounded-lg px-4 py-3 text-base font-medium text-orange-500 hover:bg-orange-50"
+              >
+                Admin
+              </a>
+            )}
           </nav>
         </div>
       )}

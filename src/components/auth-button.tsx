@@ -3,9 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useAuth } from "./auth-provider";
 
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "";
+
 export default function AuthButton() {
   const { user, authLoaded, signOut } = useAuth();
   const router = useRouter();
+  const isAdmin = user?.email === ADMIN_EMAIL;
 
   async function handleSignOut() {
     await signOut();
@@ -37,6 +40,14 @@ export default function AuthButton() {
       >
         My Events
       </a>
+      {isAdmin && (
+        <a
+          href="/admin/scraping"
+          className="text-sm font-medium text-orange-500 hover:text-orange-600"
+        >
+          Admin
+        </a>
+      )}
       <a
         href="/profile"
         className="text-sm text-gray-600 hover:text-[var(--primary)]"
