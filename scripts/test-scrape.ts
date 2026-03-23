@@ -1,4 +1,4 @@
-// Test link-following on multiple promising zero-event venues
+// Add Atlanta Regional Airport as a venue and scrape it
 import { readFileSync } from "fs";
 import { resolve } from "path";
 const envPath = resolve(process.cwd(), ".env.local");
@@ -21,71 +21,62 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// Test specific venues by name
-const TEST_VENUES = [
-  "Atlanta History Center",
-  "Canton Theatre",
-  "Forsyth County Public Library",
-  "City of Woodstock",
-  "Children's Museum",
-  "Sequoyah Regional",
-  "Sandy Springs",
-  "Cumming Fairgrounds",
-  "Blue Ridge Community",
-  "Atlantic Station",
-  "High Museum",
-  "Center for Puppetry",
-];
-
 async function main() {
-  const { runScrapeAll } = await import("../src/scrapers/scrape-engine");
-
-  // Find venue IDs
-  const { data: venues } = await supabase
+  // Check if venue already exists
+  const { data: existing } = await supabase
     .from("venues")
-    .select("id, name, scrape_url")
-    .eq("is_active", true);
+    .select("id, name")
+    .ilike("name", "%Atlanta Regional Airport%");
 
-  const toTest = venues?.filter(v =>
-    TEST_VENUES.some(t => v.name.toLowerCase().includes(t.toLowerCase()))
-  ) || [];
+  let venueId: string;
 
-  console.log(`Testing ${toTest.length} venues with link-following:\n`);
-  for (const v of toTest) {
-    console.log(`  ${v.name} → ${v.scrape_url}`);
-  }
+  if (existing && existing.length > 0) {
+    console.log(`Venue already exists: ${existing[0].name}`);
+    // Update the URL
+    await supabase.from("venues").update({ scrape_url: "https://atlantaregionalairport.com/events/" }).eq("id", existing[0].id);
+    venueId = existing[0].id;
+  } else {
+    // Create new venue
+    const { data: newVenue, error } = await supabase
+      .from("venues")
+      .insert({
+        name: "Atlanta Regional Airport (Falcon Field)",
+        city: "Peachtree City",
+        state: "GA",
+        address: "1 Falcon Field, Peachtree City, GA 30269",
+        scrape_url: "https://atlantaregionalairport.com/events/",
+        is_active: true,
+        categories: ["outdoor", "family"],
+      })
+      .select("id, name")
+      .single();
 
-  const venueIds = toTest.map(v => v.id);
-  console.log(`\n${"=".repeat(50)}`);
-
-  const results = await runScrapeAll(venueIds, true);
-
-  console.log(`\n${"=".repeat(50)}`);
-  console.log("TEST RESULTS SUMMARY\n");
-
-  const successes: string[] = [];
-  const failures: string[] = [];
-
-  for (const r of results.results) {
-    const icon = r.events_found > 0 ? "✅" : "❌";
-    console.log(`${icon} ${r.venue_name}: ${r.events_found} found, ${r.events_saved} saved (${r.strategy_used || "none"})`);
-    if (r.events_found > 0) successes.push(`${r.venue_name} (${r.events_found} events, strategy: ${r.strategy_used})`);
-    else failures.push(r.venue_name);
-
-    // Show strategy attempts
-    for (const a of r.attempts) {
-      if (a.events_found > 0 || a.error_message) {
-        console.log(`   ${a.strategy}: ${a.events_found} found (${a.status})${a.error_message ? ` — ${a.error_message}` : ""}`);
-      }
+    if (error) {
+      console.log("❌ Error creating venue:", error.message);
+      return;
     }
+    console.log(`✅ Created venue: ${newVenue.name}`);
+    venueId = newVenue.id;
   }
 
-  console.log(`\n${"=".repeat(50)}`);
-  console.log(`SUCCESSES: ${successes.length}`);
-  for (const s of successes) console.log(`  ✅ ${s}`);
-  console.log(`FAILURES: ${failures.length}`);
-  for (const f of failures) console.log(`  ❌ ${f}`);
-  console.log(`${"=".repeat(50)}`);
+  // Scrape it
+  console.log(`\nScraping via API...\n`);
+  const resp = await fetch(`http://localhost:3000/api/scrape?venue=${venueId}&detect=true`, { method: "POST" });
+  const result = await resp.json();
+
+  console.log("Result:", JSON.stringify(result, null, 2));
+
+  // Show events in DB
+  const { data: events } = await supabase
+    .from("events")
+    .select("id, name, start_date, end_date")
+    .eq("venue_id", venueId)
+    .eq("status", "published");
+
+  console.log(`\nEvents in DB: ${events?.length || 0}`);
+  for (const e of events || []) {
+    console.log(`  📅 "${e.name}" (${e.start_date}${e.end_date ? " – " + e.end_date : ""})`);
+  }
 }
 
 main().catch(console.error);
