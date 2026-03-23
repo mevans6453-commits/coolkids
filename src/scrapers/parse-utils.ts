@@ -499,10 +499,12 @@ export function validateScrapedEvents(
       continue;
     }
 
-    // 4. Name is a page title / navigation element / ad / CTA
+    // 4. Name is a page title / navigation element / ad / CTA / social post
     const pageTitlePatterns = [
       /^events?\s*calendar$/i, /^upcoming\s*events$/i, /^what.s\s*happening/i,
       /^shows?\s*and\s*screenings$/i, /^calendar\s*of\s*events$/i,
+      /^things\s*to\s*do$/i, /^plan\s*your\s*visit$/i, /^visit\s*us$/i,
+      /^hours\s*(and|&)\s*(admission|info)/i, /^ticket\s*info/i,
       /^annual\s*report/i, /^about\s*(us)?$/i, /^contact(\s*us)?$/i,
       /^directions$/i, /^faq$/i, /^gift\s*(shop|card)/i, /^membership/i,
       /^privacy/i, /^terms/i, /^menu$/i, /^donate$/i, /^volunteer$/i,
@@ -515,41 +517,93 @@ export function validateScrapedEvents(
       continue;
     }
 
-    // 5. Name is a location/city (single word or very short with no event-like words)
+    // 5. Social media post scraped as event (starts with casual language)
+    if (/^(yep|hey|wow|omg|check\s*out|guess\s*what|who\s*else|can\s*you\s*believe)/i.test(lower)) {
+      rejected.push({ event: e, reason: `Social media post: "${name}"` });
+      continue;
+    }
+
+    // 6. Name is a location/city (single word or very short with no event-like words)
     const cityNames = ["atlanta", "gainesville", "roswell", "canton", "woodstock", "alpharetta", "marietta", "kennesaw"];
     if (cityNames.includes(lower.trim())) {
       rejected.push({ event: e, reason: `City name as event: "${name}"` });
       continue;
     }
 
-    // 6. Canceled events
+    // 7. Canceled events
     if (/\b(cancell?ed|postponed indefinitely)\b/i.test(combined)) {
       rejected.push({ event: e, reason: `Canceled: "${name}"` });
       continue;
     }
 
-    // 7. Closures (museum closed, park closed, etc.)
+    // 8. Closures (museum closed, park closed, etc.)
     if (/\b(museum|park|center|facility)?\s*closed/i.test(lower) || /closing\s*early/i.test(lower)) {
       rejected.push({ event: e, reason: `Closure notice: "${name}"` });
       continue;
     }
 
-    // 8. Past events
+    // 9. Past events
     const endCheck = e.end_date || e.start_date;
     if (endCheck && endCheck < today) {
       rejected.push({ event: e, reason: `Past event: ends ${endCheck}` });
       continue;
     }
 
-    // 9. Junk description content (reviews, phone numbers as content, HTML calendar markup)
+    // 10. Junk description content (reviews, phone numbers as content)
     if (desc.length > 0 && desc.length < 15 && /^\d{3}[-.]?\d{3}[-.]?\d{4}$/.test(desc.trim())) {
       rejected.push({ event: e, reason: `Phone number as description: "${name}"` });
       continue;
     }
 
-    // 10. Decode HTML entities in name and description
+    // 11. Decode HTML entities in name and description
     e.name = decodeHtmlEntities(name);
     e.description = e.description ? decodeHtmlEntities(e.description) : null;
+
+    // 12. Clean up marketing sentence prefixes from event names
+    // Only trim if what remains is still a meaningful name (10+ chars)
+    const originalName = e.name;
+    let trimmedName = e.name
+      .replace(/^(join\s+us\s+(for|at)\s+)/i, "")
+      .replace(/^(come\s+(out\s+)?(to|for|join)\s+(us\s+(for|at)\s+)?)/i, "")
+      .replace(/^(experience\s+the\s+\w+\s+of\s+the\s+\w+\s+at\s+)/i, "")
+      .replace(/^(experience\s+the\s+\w+\s+of\s+)/i, "")
+      .replace(/^(don'?t\s+miss\s+(our\s+)?)/i, "")
+      .replace(/^(we'?re\s+(excited|thrilled|happy)\s+to\s+(announce|present|host)\s+)/i, "")
+      .replace(/^(you'?re\s+invited\s+to\s+)/i, "")
+      .replace(/^(celebrate\s+with\s+us\s+(at\s+)?)/i, "")
+      .trim();
+    // Only use the trimmed version if it still looks like a real event name
+    if (trimmedName.length >= 10 && trimmedName !== originalName) {
+      e.name = trimmedName;
+    }
+    // Re-capitalize first letter after trimming
+    if (e.name.length > 0) {
+      e.name = e.name.charAt(0).toUpperCase() + e.name.slice(1);
+    }
+
+    // 13. Validate times — reject impossible values
+    if (e.start_time) {
+      const timeMatch = e.start_time.match(/^(\d{1,2})(:\d{2})?\s*(AM|PM)$/i);
+      if (timeMatch) {
+        const hour = parseInt(timeMatch[1]);
+        if (hour > 12 || hour === 0) {
+          e.start_time = null; // Invalid hour, clear it
+        }
+      } else {
+        e.start_time = null; // Doesn't match time format at all
+      }
+    }
+    if (e.end_time) {
+      const timeMatch = e.end_time.match(/^(\d{1,2})(:\d{2})?\s*(AM|PM)$/i);
+      if (timeMatch) {
+        const hour = parseInt(timeMatch[1]);
+        if (hour > 12 || hour === 0) {
+          e.end_time = null;
+        }
+      } else {
+        e.end_time = null;
+      }
+    }
 
     passedIndividual.push(e);
   }
@@ -594,16 +648,31 @@ export function validateScrapedEvents(
     }
   }
 
-  // ---- Pass 3: Deduplicate within batch (same name + same date) ----
-  const seen = new Set<string>();
+  // ---- Pass 3: Deduplicate within batch (exact + fuzzy name match on same date) ----
   const deduped: ScrapedEvent[] = [];
   for (const e of valid) {
-    const key = `${e.name}|${e.start_date}`;
-    if (seen.has(key)) {
-      rejected.push({ event: e, reason: `Duplicate in batch: "${e.name}" on ${e.start_date}` });
+    // Check for exact or fuzzy match against already-accepted events
+    const isDupe = deduped.some((existing) => {
+      if (existing.start_date !== e.start_date) return false;
+      // Exact match
+      if (existing.name === e.name) return true;
+      // Fuzzy: normalize both names and compare
+      const normA = existing.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const normB = e.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+      // One name starts with the other (catches "Art For Lunch: Mark Medley" vs "Art For Lunch: Mark Medley: The West...")
+      if (normA.startsWith(normB) || normB.startsWith(normA)) return true;
+      // Very similar (>80% overlap by length after normalization)
+      if (normA.length > 10 && normB.length > 10) {
+        const shorter = normA.length < normB.length ? normA : normB;
+        const longer = normA.length < normB.length ? normB : normA;
+        if (longer.includes(shorter)) return true;
+      }
+      return false;
+    });
+    if (isDupe) {
+      rejected.push({ event: e, reason: `Fuzzy duplicate: "${e.name}" on ${e.start_date}` });
       continue;
     }
-    seen.add(key);
     deduped.push(e);
   }
 
