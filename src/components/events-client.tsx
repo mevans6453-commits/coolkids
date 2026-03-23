@@ -164,9 +164,11 @@ export default function EventsClient({ events, interactionCounts }: Props) {
       );
     }
 
-    // Event type filter — hide 'hours' by default unless toggle is on
+    // Event type filter — hide 'hours' and 'not_for_kids' by default unless toggle is on
     if (!showHours) {
-      result = result.filter((e) => e.event_type !== "hours");
+      result = result.filter((e) => e.event_type !== "hours" && e.event_type !== "not_for_kids");
+    } else {
+      result = result.filter((e) => e.event_type !== "not_for_kids");
     }
 
     // Age filter — show events that OVERLAP the selected range

@@ -8,7 +8,6 @@ export default async function AdminScrapingPage() {
   const { data: venues } = await supabase
     .from("venues")
     .select("id, name, preferred_strategy, scrape_url, is_active, categories")
-    .eq("is_active", true)
     .order("name");
 
   // Fetch recent scrape runs (latest 500 — enough to get most recent per venue)

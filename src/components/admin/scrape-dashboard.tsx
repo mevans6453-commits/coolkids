@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Play, RefreshCw, ChevronDown, ChevronUp, Check } from "lucide-react";
+import { Play, RefreshCw, ChevronDown, ChevronUp, Check, Trash2, RotateCcw, Link } from "lucide-react";
 
 // -----------------------------------------------
 // Types
@@ -140,6 +140,12 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events }: Props) {
     }
   }
 
+  async function toggleVenueActive(venueId: string, currentlyActive: boolean) {
+    const supabase = createClient();
+    await supabase.from("venues").update({ is_active: !currentlyActive }).eq("id", venueId);
+    router.refresh();
+  }
+
   return (
     <div className="mt-8 space-y-8">
       {/* Strategy Scoreboard */}
@@ -167,13 +173,13 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events }: Props) {
           {scrapingAll ? "Scraping All..." : "Run Scrape (All Venues)"}
         </button>
         <span className="text-sm text-gray-500">
-          {venues.length} venues · {events.length} events
+          {venues.filter(v => v.is_active).length} active venues · {events.length} events
         </span>
       </div>
 
-      {/* Venue Scoreboard Table */}
+      {/* Active Venue Scoreboard Table */}
       <section>
-        <h2 className="text-lg font-semibold text-gray-900">Venue Scoreboard</h2>
+        <h2 className="text-lg font-semibold text-gray-900">Active Venues</h2>
         <div className="mt-3 overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left text-xs font-medium text-gray-500">
@@ -210,6 +216,7 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events }: Props) {
                     events={venueEvents}
                     onToggleExpand={() => setExpandedVenue(isExpanded ? null : venue.id)}
                     onRunScrape={() => runScrape(venue.id)}
+                    onToggleActive={() => toggleVenueActive(venue.id, venue.is_active)}
                   />
                 );
               })}
@@ -217,6 +224,34 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events }: Props) {
           </table>
         </div>
       </section>
+
+      {/* Deactivated Venues */}
+      {venues.some(v => !v.is_active) && (
+        <section>
+          <h2 className="text-lg font-semibold text-gray-400">Deactivated Venues</h2>
+          <p className="mt-1 text-xs text-gray-400">These venues are hidden from all public pages.</p>
+          <div className="mt-3 overflow-x-auto rounded-lg border border-gray-200">
+            <table className="w-full text-sm">
+              <tbody className="divide-y divide-gray-100">
+                {venues.filter(v => !v.is_active).map((venue) => (
+                  <tr key={venue.id} className="bg-gray-50/50">
+                    <td className="px-4 py-3 text-gray-400 line-through">{venue.name}</td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => toggleVenueActive(venue.id, venue.is_active)}
+                        className="flex items-center gap-1 rounded bg-green-50 px-2 py-1 text-xs font-medium text-green-700 hover:bg-green-100"
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        Reactivate
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
     </div>
   );
 }
@@ -226,7 +261,7 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events }: Props) {
 // -----------------------------------------------
 
 function VenueRow({
-  venue, run, eventCount, hoursCount, status, isExpanded, isScraping, events, onToggleExpand, onRunScrape,
+  venue, run, eventCount, hoursCount, status, isExpanded, isScraping, events, onToggleExpand, onRunScrape, onToggleActive,
 }: {
   venue: Venue;
   run: ScrapeRun | undefined;
@@ -238,6 +273,7 @@ function VenueRow({
   events: EventSummary[];
   onToggleExpand: () => void;
   onRunScrape: () => void;
+  onToggleActive: () => void;
 }) {
   return (
     <>
@@ -269,19 +305,28 @@ function VenueRow({
           )}
         </td>
         <td className="px-4 py-3">
-          <button
-            onClick={onRunScrape}
-            disabled={isScraping}
-            className="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50"
-          >
-            {isScraping ? <RefreshCw className="inline h-3 w-3 animate-spin" /> : "Scrape"}
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={onRunScrape}
+              disabled={isScraping}
+              className="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+            >
+              {isScraping ? <RefreshCw className="inline h-3 w-3 animate-spin" /> : "Scrape"}
+            </button>
+            <button
+              onClick={onToggleActive}
+              className="rounded bg-red-50 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-100"
+              title="Deactivate this venue"
+            >
+              <Trash2 className="inline h-3 w-3" />
+            </button>
+          </div>
         </td>
       </tr>
       {isExpanded && (
         <tr>
           <td colSpan={7} className="bg-gray-50/50 px-4 py-3">
-            <EventEditList events={events} />
+            <VenueExpandedView venue={venue} events={events} />
           </td>
         </tr>
       )}
@@ -290,7 +335,49 @@ function VenueRow({
 }
 
 // -----------------------------------------------
-// Inline Event Edit List (expanded row)
+// Venue Expanded View (URL editing + events)
+// -----------------------------------------------
+
+function VenueExpandedView({ venue, events }: { venue: Venue; events: EventSummary[] }) {
+  const supabase = createClient();
+  const [urlValue, setUrlValue] = useState(venue.scrape_url || "");
+  const [urlSaved, setUrlSaved] = useState(false);
+
+  async function saveUrl() {
+    await supabase.from("venues").update({ scrape_url: urlValue || null }).eq("id", venue.id);
+    setUrlSaved(true);
+    setTimeout(() => setUrlSaved(false), 2000);
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Editable scrape URL */}
+      <div>
+        <label className="flex items-center gap-1 text-[10px] font-medium text-gray-400 uppercase mb-1">
+          <Link className="h-3 w-3" />
+          Scrape URL
+        </label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={urlValue}
+            onChange={(e) => setUrlValue(e.target.value)}
+            onBlur={saveUrl}
+            placeholder="https://example.com/events"
+            className="flex-1 rounded border border-gray-200 px-2 py-1 text-xs text-gray-700 focus:border-[var(--primary)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
+          />
+          {urlSaved && <Check className="h-4 w-4 text-green-500 flex-shrink-0 self-center" />}
+        </div>
+      </div>
+
+      {/* Events list */}
+      <EventEditList events={events} />
+    </div>
+  );
+}
+
+// -----------------------------------------------
+// Inline Event Edit List
 // -----------------------------------------------
 
 function EventEditList({ events }: { events: EventSummary[] }) {
@@ -309,14 +396,14 @@ function EventEditList({ events }: { events: EventSummary[] }) {
 
   return (
     <div className="space-y-1">
-      <div className="grid grid-cols-[1fr_80px_60px_60px] gap-2 text-[10px] font-medium text-gray-400 uppercase">
+      <div className="grid grid-cols-[1fr_100px_60px_60px] gap-2 text-[10px] font-medium text-gray-400 uppercase">
         <span>Event Name</span>
         <span>Type</span>
         <span>Age Min</span>
         <span>Age Max</span>
       </div>
       {events.map((e) => (
-        <div key={e.id} className="grid grid-cols-[1fr_80px_60px_60px] gap-2 items-center">
+        <div key={e.id} className="grid grid-cols-[1fr_100px_60px_60px] gap-2 items-center">
           <span className="text-xs text-gray-700 truncate" title={e.name}>{e.name}</span>
           <select
             value={e.event_type || "event"}
@@ -325,6 +412,7 @@ function EventEditList({ events }: { events: EventSummary[] }) {
           >
             <option value="event">event</option>
             <option value="hours">hours</option>
+            <option value="not_for_kids">not for kids</option>
           </select>
           <input
             type="number"

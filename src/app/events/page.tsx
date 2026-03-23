@@ -12,8 +12,10 @@ export default async function EventsPage() {
   const today = new Date().toISOString().split("T")[0];
   const { data: events, error } = await supabase
     .from("events")
-    .select("*, venue:venues(*)")
+    .select("*, venue:venues!inner(*)")
     .eq("status", "published")
+    .eq("venue.is_active", true)
+    .not("event_type", "eq", "not_for_kids")
     .or(`end_date.gte.${today},and(end_date.is.null,start_date.gte.${today})`)
     .order("start_date", { ascending: true });
 

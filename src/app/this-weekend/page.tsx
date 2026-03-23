@@ -40,9 +40,11 @@ export default async function ThisWeekendPage() {
   // Fetch events that overlap this weekend (start_date <= sunday AND (end_date >= saturday OR (end_date is null AND start_date >= saturday)))
   const { data: allEvents } = await supabase
     .from("events")
-    .select("*, venue:venues(*)")
+    .select("*, venue:venues!inner(*)")
     .eq("status", "published")
+    .eq("venue.is_active", true)
     .neq("event_type", "hours")
+    .not("event_type", "eq", "not_for_kids")
     .lte("start_date", endOfMonthStr)
     .order("start_date", { ascending: true });
 
