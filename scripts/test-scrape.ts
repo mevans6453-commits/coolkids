@@ -1,4 +1,4 @@
-// Test: scrape Mill on Etowah with the new link-following strategy
+// Test link-following on multiple promising zero-event venues
 import { readFileSync } from "fs";
 import { resolve } from "path";
 const envPath = resolve(process.cwd(), ".env.local");
@@ -21,35 +21,71 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-async function main() {
-  // First update the Mill on Etowah URL
-  const { data } = await supabase
-    .from("venues")
-    .update({ scrape_url: "https://www.etowahmill.com/events" })
-    .ilike("name", "%Mill on Etowah%")
-    .select("id, name, scrape_url");
-  
-  console.log("Updated:", data?.[0]?.name, "→", data?.[0]?.scrape_url);
+// Test specific venues by name
+const TEST_VENUES = [
+  "Atlanta History Center",
+  "Canton Theatre",
+  "Forsyth County Public Library",
+  "City of Woodstock",
+  "Children's Museum",
+  "Sequoyah Regional",
+  "Sandy Springs",
+  "Cumming Fairgrounds",
+  "Blue Ridge Community",
+  "Atlantic Station",
+  "High Museum",
+  "Center for Puppetry",
+];
 
-  // Now import and run the scraper
+async function main() {
   const { runScrapeAll } = await import("../src/scrapers/scrape-engine");
-  
-  if (!data?.[0]?.id) {
-    console.log("Could not find Mill on Etowah venue");
-    return;
+
+  // Find venue IDs
+  const { data: venues } = await supabase
+    .from("venues")
+    .select("id, name, scrape_url")
+    .eq("is_active", true);
+
+  const toTest = venues?.filter(v =>
+    TEST_VENUES.some(t => v.name.toLowerCase().includes(t.toLowerCase()))
+  ) || [];
+
+  console.log(`Testing ${toTest.length} venues with link-following:\n`);
+  for (const v of toTest) {
+    console.log(`  ${v.name} → ${v.scrape_url}`);
   }
 
-  console.log("\nScraping Mill on Etowah...\n");
-  const results = await runScrapeAll([data[0].id], true);
+  const venueIds = toTest.map(v => v.id);
+  console.log(`\n${"=".repeat(50)}`);
 
-  console.log("\n=== RESULTS ===");
+  const results = await runScrapeAll(venueIds, true);
+
+  console.log(`\n${"=".repeat(50)}`);
+  console.log("TEST RESULTS SUMMARY\n");
+
+  const successes: string[] = [];
+  const failures: string[] = [];
+
   for (const r of results.results) {
-    console.log(`${r.venue_name}: ${r.events_found} found, ${r.events_saved} saved (${r.strategy_used || "none"})`);
-    if (r.error) console.log(`  Error: ${r.error}`);
+    const icon = r.events_found > 0 ? "✅" : "❌";
+    console.log(`${icon} ${r.venue_name}: ${r.events_found} found, ${r.events_saved} saved (${r.strategy_used || "none"})`);
+    if (r.events_found > 0) successes.push(`${r.venue_name} (${r.events_found} events, strategy: ${r.strategy_used})`);
+    else failures.push(r.venue_name);
+
+    // Show strategy attempts
     for (const a of r.attempts) {
-      console.log(`  Strategy ${a.strategy}: ${a.events_found} found, ${a.status}`);
+      if (a.events_found > 0 || a.error_message) {
+        console.log(`   ${a.strategy}: ${a.events_found} found (${a.status})${a.error_message ? ` — ${a.error_message}` : ""}`);
+      }
     }
   }
+
+  console.log(`\n${"=".repeat(50)}`);
+  console.log(`SUCCESSES: ${successes.length}`);
+  for (const s of successes) console.log(`  ✅ ${s}`);
+  console.log(`FAILURES: ${failures.length}`);
+  for (const f of failures) console.log(`  ❌ ${f}`);
+  console.log(`${"=".repeat(50)}`);
 }
 
 main().catch(console.error);
