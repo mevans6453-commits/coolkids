@@ -45,7 +45,7 @@ export const htmlStrategy: ScrapeStrategy = {
         return { events, error: null };
       }
 
-      const events = parseHtmlForEvents(html, config.default_categories, config.scrape_url);
+      const events = await parseHtmlForEvents(html, config.default_categories, config.scrape_url);
       return { events, error: null };
     } catch (err) {
       return { events: [], error: err instanceof Error ? err.message : String(err) };
@@ -54,7 +54,7 @@ export const htmlStrategy: ScrapeStrategy = {
 };
 
 /** Parse HTML for events using a two-pass approach */
-function parseHtmlForEvents(html: string, defaultCategories: string[], scrapeUrl?: string): ScrapedEvent[] {
+async function parseHtmlForEvents(html: string, defaultCategories: string[], scrapeUrl?: string): Promise<ScrapedEvent[]> {
   const currentYear = new Date().getFullYear();
   const events: ScrapedEvent[] = [];
 
@@ -123,49 +123,231 @@ function parseHtmlForEvents(html: string, defaultCategories: string[], scrapeUrl
     });
   }
 
-  // Pass 3: If no events found from headings, try <strong>/<b> blocks as event names
-  // (catches Weebly sites like North Georgia Zoo that use bold text instead of headings)
-  if (events.length === 0) {
-    const boldRegex = /<(?:strong|b)>([^<]{10,150})<\/(?:strong|b)>/gi;
-    let boldMatch;
-    while ((boldMatch = boldRegex.exec(html)) !== null) {
-      const boldText = stripHtml(boldMatch[1]).trim();
-      if (isNonEventHeading(boldText)) continue;
-      if (boldText.length < 5) continue;
-
-      // Get surrounding text (up to 1500 chars after the bold tag)
-      const surroundingHtml = html.slice(boldMatch.index, Math.min(boldMatch.index + 1500, html.length));
-      const surroundingText = stripHtml(surroundingHtml);
-
-      const dateInfo = extractDate(surroundingText, currentYear);
-      if (!dateInfo) continue;
-
-      const timeInfo = extractTime(surroundingText);
-      const costInfo = extractCost(surroundingText);
-      const linkMatch = surroundingHtml.match(/<a[^>]*href=["']([^"']+)["'][^>]*>/i);
-
-      events.push({
-        name: boldText.slice(0, 200),
-        description: surroundingText.slice(boldText.length, boldText.length + 300).trim() || null,
-        start_date: dateInfo.start_date,
-        end_date: dateInfo.end_date,
-        start_time: timeInfo?.start_time || null,
-        end_time: timeInfo?.end_time || null,
-        cost: costInfo?.cost || null,
-        cost_min: costInfo?.cost_min ?? null,
-        cost_max: costInfo?.cost_max ?? null,
-        is_free: costInfo?.is_free || false,
-        pricing_notes: costInfo?.pricing_notes ?? null,
-        ...extractAge(`${boldText} ${surroundingText}`),
-        event_type: classifyEventType(boldText, surroundingText.slice(0, 300), dateInfo.start_date, dateInfo.end_date),
-        categories: [...defaultCategories],
-        source_url: linkMatch ? resolveUrl(linkMatch[1], scrapeUrl) : null,
-        image_url: null,
-      });
-    }
+  // Pass 4: If still no events, look for event links and follow sub-pages
+  // Handles sites like etowahmill.com where /events is just navigation
+  // and real data lives on /event/denimfest, /event/wildlife-expo, etc.
+  if (events.length === 0 && scrapeUrl) {
+    const subPageEvents = await followEventLinks(html, scrapeUrl, defaultCategories);
+    events.push(...subPageEvents);
   }
 
   return events;
+}
+
+/** Discover event sub-page links and scrape each one */
+async function followEventLinks(
+  indexHtml: string,
+  scrapeUrl: string,
+  defaultCategories: string[]
+): Promise<ScrapedEvent[]> {
+  const events: ScrapedEvent[] = [];
+
+  try {
+    const baseUrl = new URL(scrapeUrl);
+    const baseDomain = baseUrl.origin;
+
+    // Find all internal links that look like event pages
+    const linkRegex = /<a[^>]*href=["']([^"']+)["'][^>]*>/gi;
+    const eventUrlPatterns = [
+      /\/events?\//i,      // /event/something or /events/something
+      /\/calendar\//i,     // /calendar/event-name
+      /\/program\//i,      // /program/something
+      /\/activity\//i,     // /activity/something
+      /\/show\//i,         // /show/something
+    ];
+
+    const seenUrls = new Set<string>();
+    const eventUrls: string[] = [];
+
+    let linkMatch;
+    while ((linkMatch = linkRegex.exec(indexHtml)) !== null) {
+      let href = linkMatch[1];
+
+      // Skip anchors, javascript, mailto, tel
+      if (href.startsWith("#") || href.startsWith("javascript:") ||
+          href.startsWith("mailto:") || href.startsWith("tel:")) continue;
+
+      // Resolve relative URLs
+      if (href.startsWith("/")) href = baseDomain + href;
+      else if (!href.startsWith("http")) continue;
+
+      // Must be same domain
+      try {
+        const url = new URL(href);
+        if (url.origin !== baseDomain) continue;
+
+        // Must match event URL pattern
+        if (!eventUrlPatterns.some(p => p.test(url.pathname))) continue;
+
+        // Skip the index page itself
+        if (url.pathname === baseUrl.pathname) continue;
+
+        // Dedupe
+        const key = url.pathname;
+        if (seenUrls.has(key)) continue;
+        seenUrls.add(key);
+
+        eventUrls.push(href);
+      } catch { continue; }
+    }
+
+    if (eventUrls.length === 0) return events;
+
+    console.log(`  [HTML] Found ${eventUrls.length} event sub-page links, fetching up to 10...`);
+
+    // Fetch up to 10 sub-pages
+    const toFetch = eventUrls.slice(0, 10);
+    for (const url of toFetch) {
+      try {
+        const resp = await fetch(url, {
+          headers: { "User-Agent": USER_AGENT },
+          signal: AbortSignal.timeout(10000),
+        });
+        if (!resp.ok) continue;
+
+        const subHtml = await resp.text();
+        const currentYear = new Date().getFullYear();
+
+        // Extract event data from the sub-page
+        // Try JSON-LD first (many CMS embed structured data on event pages)
+        const jsonLdEvent = extractJsonLdEvent(subHtml);
+        if (jsonLdEvent) {
+          events.push({ ...jsonLdEvent, categories: [...defaultCategories] });
+          console.log(`  [HTML] Sub-page JSON-LD: "${jsonLdEvent.name}" (${url})`);
+          continue;
+        }
+
+        // Fall back to heading-based extraction
+        const subEvents = await parseHtmlForEvents(subHtml, defaultCategories);
+        if (subEvents.length > 0) {
+          for (const e of subEvents) {
+            e.source_url = url;
+          }
+          events.push(...subEvents);
+          console.log(`  [HTML] Sub-page headings: found ${subEvents.length} events (${url})`);
+          continue;
+        }
+
+        // Last resort: try OG/meta tags for event info
+        const metaEvent = extractFromMetaTags(subHtml, url, currentYear, defaultCategories);
+        if (metaEvent) {
+          events.push(metaEvent);
+          console.log(`  [HTML] Sub-page meta: "${metaEvent.name}" (${url})`);
+        }
+
+        // Polite delay
+        await new Promise(r => setTimeout(r, 500));
+      } catch { continue; }
+    }
+
+    console.log(`  [HTML] Link-following found ${events.length} total events from ${toFetch.length} sub-pages`);
+  } catch { /* URL parsing error */ }
+
+  return events;
+}
+
+/** Try to extract a single event from JSON-LD on a page */
+function extractJsonLdEvent(html: string): ScrapedEvent | null {
+  const jsonLdRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let match;
+  while ((match = jsonLdRegex.exec(html)) !== null) {
+    try {
+      const data = JSON.parse(match[1]);
+      const items = Array.isArray(data) ? data : [data];
+      for (const item of items) {
+        if (item["@type"] === "Event" && item.name && item.startDate) {
+          const startDate = item.startDate.split("T")[0];
+          const endDate = item.endDate ? item.endDate.split("T")[0] : null;
+
+          // Extract time
+          let startTime: string | null = null;
+          let endTime: string | null = null;
+          if (item.startDate.includes("T")) {
+            const t = item.startDate.split("T")[1];
+            if (t) {
+              const [h, m] = t.split(":");
+              const hr = parseInt(h);
+              const period = hr >= 12 ? "PM" : "AM";
+              const h12 = hr === 0 ? 12 : hr > 12 ? hr - 12 : hr;
+              startTime = `${h12}:${m.slice(0, 2)} ${period}`;
+            }
+          }
+
+          // Extract cost from offers
+          let cost: string | null = null;
+          let costMin: number | null = null;
+          let isFree = false;
+          if (item.offers) {
+            const offers = Array.isArray(item.offers) ? item.offers : [item.offers];
+            const prices = offers.map((o: any) => parseFloat(o.price)).filter((p: number) => !isNaN(p));
+            if (prices.length > 0) {
+              costMin = Math.min(...prices);
+              cost = costMin === 0 ? "Free" : `$${costMin}`;
+              isFree = costMin === 0;
+            }
+          }
+
+          return {
+            name: item.name,
+            description: item.description?.slice(0, 500) || null,
+            start_date: startDate,
+            end_date: endDate,
+            start_time: startTime,
+            end_time: endTime,
+            cost,
+            cost_min: costMin,
+            cost_max: null,
+            is_free: isFree,
+            pricing_notes: null,
+            age_range_min: null,
+            age_range_max: null,
+            event_type: classifyEventType(item.name, item.description || "", startDate, endDate),
+            categories: [],
+            source_url: item.url || null,
+            image_url: typeof item.image === "string" ? item.image : item.image?.url || null,
+          };
+        }
+      }
+    } catch { continue; }
+  }
+  return null;
+}
+
+/** Extract event info from OG/meta tags as last resort */
+function extractFromMetaTags(
+  html: string, url: string, currentYear: number, defaultCategories: string[]
+): ScrapedEvent | null {
+  const ogTitle = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i)?.[1];
+  const ogDesc = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i)?.[1];
+  const ogImage = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i)?.[1];
+
+  if (!ogTitle || ogTitle.length < 5) return null;
+
+  // Try to extract a date from the description
+  const dateInfo = extractDate(ogDesc || "", currentYear);
+  if (!dateInfo) return null;
+
+  const costInfo = extractCost(ogDesc || "");
+
+  return {
+    name: ogTitle.slice(0, 200),
+    description: ogDesc?.slice(0, 500) || null,
+    start_date: dateInfo.start_date,
+    end_date: dateInfo.end_date,
+    start_time: null,
+    end_time: null,
+    cost: costInfo?.cost || null,
+    cost_min: costInfo?.cost_min ?? null,
+    cost_max: costInfo?.cost_max ?? null,
+    is_free: costInfo?.is_free || false,
+    pricing_notes: costInfo?.pricing_notes ?? null,
+    age_range_min: null,
+    age_range_max: null,
+    event_type: classifyEventType(ogTitle, ogDesc || "", dateInfo.start_date, dateInfo.end_date),
+    categories: [...defaultCategories],
+    source_url: url,
+    image_url: ogImage || null,
+  };
 }
 
 type TimeElement = { datetime: string; date: string | null; time: string | null };
