@@ -123,6 +123,48 @@ function parseHtmlForEvents(html: string, defaultCategories: string[], scrapeUrl
     });
   }
 
+  // Pass 3: If no events found from headings, try <strong>/<b> blocks as event names
+  // (catches Weebly sites like North Georgia Zoo that use bold text instead of headings)
+  if (events.length === 0) {
+    const boldRegex = /<(?:strong|b)>([^<]{10,150})<\/(?:strong|b)>/gi;
+    let boldMatch;
+    while ((boldMatch = boldRegex.exec(html)) !== null) {
+      const boldText = stripHtml(boldMatch[1]).trim();
+      if (isNonEventHeading(boldText)) continue;
+      if (boldText.length < 5) continue;
+
+      // Get surrounding text (up to 1500 chars after the bold tag)
+      const surroundingHtml = html.slice(boldMatch.index, Math.min(boldMatch.index + 1500, html.length));
+      const surroundingText = stripHtml(surroundingHtml);
+
+      const dateInfo = extractDate(surroundingText, currentYear);
+      if (!dateInfo) continue;
+
+      const timeInfo = extractTime(surroundingText);
+      const costInfo = extractCost(surroundingText);
+      const linkMatch = surroundingHtml.match(/<a[^>]*href=["']([^"']+)["'][^>]*>/i);
+
+      events.push({
+        name: boldText.slice(0, 200),
+        description: surroundingText.slice(boldText.length, boldText.length + 300).trim() || null,
+        start_date: dateInfo.start_date,
+        end_date: dateInfo.end_date,
+        start_time: timeInfo?.start_time || null,
+        end_time: timeInfo?.end_time || null,
+        cost: costInfo?.cost || null,
+        cost_min: costInfo?.cost_min ?? null,
+        cost_max: costInfo?.cost_max ?? null,
+        is_free: costInfo?.is_free || false,
+        pricing_notes: costInfo?.pricing_notes ?? null,
+        ...extractAge(`${boldText} ${surroundingText}`),
+        event_type: classifyEventType(boldText, surroundingText.slice(0, 300), dateInfo.start_date, dateInfo.end_date),
+        categories: [...defaultCategories],
+        source_url: linkMatch ? resolveUrl(linkMatch[1], scrapeUrl) : null,
+        image_url: null,
+      });
+    }
+  }
+
   return events;
 }
 

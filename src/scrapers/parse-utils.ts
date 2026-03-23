@@ -399,7 +399,7 @@ export function parseEventsFromMarkdown(
     const headingMatch = section.match(/^###?\s*\[?([^\]\n]+)\]?/);
     if (!headingMatch) continue;
 
-    const eventName = headingMatch[1]
+    let eventName = headingMatch[1]
       .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
       .replace(/\*\*/g, "")
       .replace(/\\n/g, " ")
@@ -409,6 +409,20 @@ export function parseEventsFromMarkdown(
 
     const dateInfo = extractDate(section, currentYear);
     if (!dateInfo) continue;
+
+    // If heading is a date+time string (e.g. "Saturday, March 28, 2026 7:00 AM — 9:00 AM"),
+    // extract the real event name from the first non-empty line after the heading
+    if (/^(monday|tuesday|wednesday|thursday|friday|saturday|sunday),?\s/i.test(eventName) ||
+        /^(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d/i.test(eventName)) {
+      const bodyLines = section.split("\n").slice(1)
+        .map((l) => l.replace(/[#*_\[\]()]/g, "").trim())
+        .filter((l) => l.length > 3 && !/^\d/.test(l) && !/^http/i.test(l) && !/^!\[/.test(l));
+      if (bodyLines.length > 0) {
+        eventName = bodyLines[0].slice(0, 120);
+      } else {
+        continue; // No real name found, skip this entry
+      }
+    }
 
     const timeInfo = extractTime(section);
     const costInfo = extractCost(section);
@@ -472,8 +486,8 @@ export function validateScrapedEvents(
   const passedIndividual: ScrapedEvent[] = [];
 
   for (const e of events) {
-    const name = (e.name || "").trim();
-    const lower = name.toLowerCase();
+    let name = (e.name || "").trim();
+    let lower = name.toLowerCase();
     const desc = (e.description || "").toLowerCase();
     const combined = `${lower} ${desc}`;
 
@@ -484,13 +498,23 @@ export function validateScrapedEvents(
     }
 
     // 2. Name is really a date ("Saturday, March 14, 2026", "April 1st", "December 2020")
-    if (/^(monday|tuesday|wednesday|thursday|friday|saturday|sunday),?\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(lower)) {
-      rejected.push({ event: e, reason: `Date scraped as name: "${name}"` });
-      continue;
-    }
-    if (/^(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(st|nd|rd|th)?\s*,?\s*\d{0,4}$/i.test(lower.trim())) {
-      rejected.push({ event: e, reason: `Date scraped as name: "${name}"` });
-      continue;
+    //    But try to rescue by extracting real name from description first
+    const looksLikeDate =
+      /^(monday|tuesday|wednesday|thursday|friday|saturday|sunday),?\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(lower) ||
+      /^(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(st|nd|rd|th)?\s*,?\s*\d{0,4}$/i.test(lower.trim());
+    if (looksLikeDate) {
+      // Try to extract real name from first line of description
+      const descLines = (e.description || "").split("\n")
+        .map((l) => l.trim())
+        .filter((l) => l.length > 3 && !/^\d/.test(l));
+      if (descLines.length > 0 && descLines[0].length >= 5 && descLines[0].length <= 120) {
+        e.name = descLines[0];
+        name = e.name;
+        lower = name.toLowerCase();
+      } else {
+        rejected.push({ event: e, reason: `Date scraped as name: "${name}"` });
+        continue;
+      }
     }
 
     // 3. Name is really a time ("10:30AM 12PM", "10 AM 12 PM")
