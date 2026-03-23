@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { ChevronDown, X, LayoutGrid, List, CalendarDays } from "lucide-react";
 import { CATEGORIES, type AgeFilter } from "@/lib/types";
 
-export type SortOption = "date" | "venue" | "trending" | "recent";
+export type SortOption = "date" | "for-you" | "venue" | "trending" | "recent";
 export type TimeFilter = "all" | "this-week" | "this-weekend" | "this-month" | "next-month";
 export type CostFilter = "all" | "free" | "under10" | "under25";
 export type ViewMode = "list" | "grid" | "calendar";
@@ -30,9 +30,10 @@ type Props = {
   totalCount: number;
   viewMode: ViewMode;
   onViewModeChange: (m: ViewMode) => void;
+  hasUserZip?: boolean;
 };
 
-const SORT_OPTIONS: [SortOption, string][] = [["date", "Date"], ["venue", "Venue"], ["trending", "Trending"], ["recent", "Recently Added"]];
+const SORT_OPTIONS: [SortOption, string][] = [["for-you", "For You ✨"], ["date", "Date"], ["venue", "Venue"], ["trending", "Trending"], ["recent", "Recently Added"]];
 const TIME_OPTIONS: [TimeFilter, string][] = [["all", "All"], ["this-week", "This Week"], ["this-weekend", "This Weekend"], ["this-month", "This Month"], ["next-month", "Next Month"]];
 const COST_OPTIONS: [CostFilter, string][] = [["all", "All"], ["free", "Free"], ["under10", "Under $10"], ["under25", "Under $25"]];
 const AGE_OPTIONS: [AgeFilter, string][] = [["all", "All Ages"], ["toddler", "Toddler (0-2)"], ["preschool", "Preschool (3-5)"], ["elementary", "Elementary (6-10)"], ["tween-teen", "Tween/Teen (11+)"]];

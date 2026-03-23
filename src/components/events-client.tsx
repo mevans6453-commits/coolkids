@@ -6,12 +6,13 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "./auth-provider";
 import type { Event, AgeFilter } from "@/lib/types";
 import { AGE_FILTER_RANGES } from "@/lib/types";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, MapPin } from "lucide-react";
 import { getCategoryBadgeClasses } from "@/lib/category-colors";
 import EventCard from "./event-card";
 import EventCalendar from "./event-calendar";
 import EventFilters, { type SortOption, type TimeFilter, type CostFilter, type ViewMode, type GroupBy } from "./event-filters";
 import { mergeConsecutiveEvents } from "@/lib/event-utils";
+import { haversineDistance, zipToCoords, getProximityTier, TIER_LABELS, type ProximityTier } from "@/lib/geo-utils";
 
 type Props = {
   events: Event[];
@@ -33,6 +34,7 @@ export default function EventsClient({ events, interactionCounts }: Props) {
   const [groupBy, setGroupBy] = useState<GroupBy>("none");
   const [expandedVenues, setExpandedVenues] = useState<Set<string>>(new Set());
   const [highlightedEventId, setHighlightedEventId] = useState<string | null>(null);
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const searchParams = useSearchParams();
 
   // Handle ?event=UUID param — scroll to and highlight a shared event
@@ -52,7 +54,7 @@ export default function EventsClient({ events, interactionCounts }: Props) {
     return () => { clearTimeout(timer); clearTimeout(clearTimer); };
   }, [searchParams]);
 
-  // Load user's hidden events + hidden venues on mount
+  // Load user's hidden events + hidden venues + profile ZIP on mount
   useEffect(() => {
     if (!user) return;
     supabase
@@ -70,6 +72,21 @@ export default function EventsClient({ events, interactionCounts }: Props) {
       .eq("is_hidden", true)
       .then(({ data }) => {
         if (data) setHiddenVenueIds(new Set(data.map((d) => d.venue_id)));
+      });
+    // Fetch user profile ZIP for proximity sorting
+    supabase
+      .from("profiles")
+      .select("zip")
+      .eq("id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (data?.zip) {
+          const coords = zipToCoords(data.zip);
+          if (coords) {
+            setUserCoords(coords);
+            setSortBy("for-you"); // Auto-default to For You
+          }
+        }
       });
   }, [supabase, user]);
 
@@ -194,7 +211,7 @@ export default function EventsClient({ events, interactionCounts }: Props) {
 
     // Sort
     result = [...result].sort((a, b) => {
-      if (sortBy === "date") {
+      if (sortBy === "date" || sortBy === "for-you") {
         return a.start_date.localeCompare(b.start_date);
       } else if (sortBy === "venue") {
         return (a.venue?.name ?? "").localeCompare(b.venue?.name ?? "");
@@ -245,6 +262,33 @@ export default function EventsClient({ events, interactionCounts }: Props) {
 
     return null;
   }, [filtered.events, groupBy]);
+
+  // Proximity-grouped events for "For You" sort
+  const proximityGroups = useMemo(() => {
+    if (sortBy !== "for-you" || !userCoords) return null;
+
+    const tiers: Record<ProximityTier, Event[]> = {
+      near: [],
+      "short-drive": [],
+      "worth-the-trip": [],
+    };
+
+    for (const event of filtered.events) {
+      const venueLat = event.venue?.latitude;
+      const venueLng = event.venue?.longitude;
+
+      if (venueLat && venueLng) {
+        const dist = haversineDistance(userCoords.lat, userCoords.lng, venueLat, venueLng);
+        const tier = getProximityTier(dist, event.expected_attendance);
+        tiers[tier].push(event);
+      } else {
+        // No coordinates — default to short-drive
+        tiers["short-drive"].push(event);
+      }
+    }
+
+    return tiers;
+  }, [filtered.events, sortBy, userCoords]);
 
   // Render a flat list of event cards
   function renderEventList(evts: Event[], view: "list" | "grid") {
@@ -347,6 +391,7 @@ export default function EventsClient({ events, interactionCounts }: Props) {
         totalCount={filtered.totalAfterHidden}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
+        hasUserZip={!!userCoords}
       />
 
       {filtered.events.length === 0 ? (
@@ -378,6 +423,26 @@ export default function EventsClient({ events, interactionCounts }: Props) {
             </div>
           </div>
         </>
+      ) : sortBy === "for-you" && proximityGroups ? (
+        <div className="mt-6 space-y-8">
+          {(["near", "short-drive", "worth-the-trip"] as ProximityTier[]).map((tier) => {
+            const tierEvents = proximityGroups[tier];
+            if (tierEvents.length === 0) return null;
+            const label = TIER_LABELS[tier];
+            return (
+              <div key={tier}>
+                <div className="flex items-center gap-2 mb-3 sticky top-0 bg-[var(--background)] py-2 z-10">
+                  <span className="text-lg">{label.emoji}</span>
+                  <h3 className="text-lg font-bold text-gray-900">{label.title}</h3>
+                  <span className="text-xs text-gray-400">{label.subtitle} · {tierEvents.length} event{tierEvents.length !== 1 ? "s" : ""}</span>
+                </div>
+                <div className={viewMode === "grid" ? "grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "space-y-2"}>
+                  {renderEventList(tierEvents, viewMode === "grid" ? "grid" : "list")}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       ) : groupBy !== "none" ? (
         renderGrouped(viewMode === "grid" ? "grid" : "list")
       ) : (

@@ -386,7 +386,10 @@ async function saveEvents(venueId: string, events: ScrapedEvent[]): Promise<numb
   let saved = 0;
 
   for (const event of events) {
-    // Default pricing fallback: if no pricing data at all, add a helpful note
+    // Estimate attendance for new events
+    const estimatedAttendance = estimateAttendance(event);
+
+    // Default pricing fallback
     if (!event.cost && !event.is_free && event.cost_min === null && event.cost_max === null && !event.pricing_notes) {
       event.pricing_notes = "Check venue website for pricing";
     }
@@ -402,7 +405,7 @@ async function saveEvents(venueId: string, events: ScrapedEvent[]): Promise<numb
       // Check if event_type was manually set to something the scraper wouldn't produce
       const { data: current } = await supabase
         .from("events")
-        .select("event_type")
+        .select("event_type, expected_attendance")
         .eq("id", existing[0].id)
         .single();
       
@@ -429,6 +432,8 @@ async function saveEvents(venueId: string, events: ScrapedEvent[]): Promise<numb
           categories: event.categories,
           source_url: event.source_url,
           image_url: event.image_url,
+          // Only update attendance if admin hasn't manually set it
+          ...(current?.expected_attendance ? {} : { expected_attendance: estimatedAttendance }),
         })
         .eq("id", existing[0].id);
 
@@ -458,6 +463,7 @@ async function saveEvents(venueId: string, events: ScrapedEvent[]): Promise<numb
         categories: event.categories,
         source_url: event.source_url,
         image_url: event.image_url,
+        expected_attendance: estimatedAttendance,
         status: "published",
       });
 
@@ -471,4 +477,59 @@ async function saveEvents(venueId: string, events: ScrapedEvent[]): Promise<numb
   }
 
   return saved;
+}
+
+// -----------------------------------------------
+// Attendance Estimation
+// -----------------------------------------------
+
+/**
+ * Estimate expected attendance from event properties.
+ * Uses keywords, categories, duration, and cost as signals.
+ */
+function estimateAttendance(event: ScrapedEvent): number {
+  const name = (event.name || "").toLowerCase();
+  const desc = (event.description || "").toLowerCase();
+  const text = `${name} ${desc}`;
+  const cats = (event.categories || []).map(c => c.toLowerCase());
+
+  // Calculate multi-day span
+  let daySpan = 1;
+  if (event.end_date && event.end_date !== event.start_date) {
+    const start = new Date(event.start_date);
+    const end = new Date(event.end_date);
+    daySpan = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
+  }
+
+  let score = 100; // baseline: small local event
+
+  // Major event keywords (10,000+)
+  const majorKeywords = ["air show", "airshow", "festival", "fair ", " fair", "expo", "marathon", "fireworks"];
+  if (majorKeywords.some(k => text.includes(k))) score = Math.max(score, 10000);
+
+  // Medium event keywords (5,000+)
+  const mediumKeywords = ["concert", "parade", "5k", "10k", "run ", "race", "holiday lights", "light show", "tree lighting"];
+  if (mediumKeywords.some(k => text.includes(k))) score = Math.max(score, 5000);
+
+  // Moderate event keywords (1,000+)
+  const moderateKeywords = ["market", "farmers market", "craft fair", "car show", "wine", "beer fest", "food truck"];
+  if (moderateKeywords.some(k => text.includes(k))) score = Math.max(score, 1000);
+
+  // Category signals
+  if (cats.includes("festival")) score = Math.max(score, 5000);
+  if (cats.includes("seasonal")) score = Math.max(score, 2000);
+
+  // Multi-day events (3+ days) suggest a bigger deal
+  if (daySpan >= 3) score = Math.max(score, 2000);
+  if (daySpan >= 7) score = Math.max(score, 5000);
+
+  // High-cost events suggest larger productions
+  if (event.cost_max && event.cost_max >= 50) score = Math.max(score, 3000);
+  if (event.cost_max && event.cost_max >= 25) score = Math.max(score, 1000);
+
+  // Small / local keywords (stay at baseline or reduce)
+  const smallKeywords = ["storytime", "story time", "craft", "class", "workshop", "playdate", "play date", "toddler"];
+  if (smallKeywords.some(k => text.includes(k)) && score <= 100) score = 50;
+
+  return score;
 }

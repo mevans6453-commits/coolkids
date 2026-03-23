@@ -57,6 +57,7 @@ export type Event = {
   image_url: string | null;
   pricing_notes: string | null;
   event_type: "event" | "hours" | "not_for_kids";
+  expected_attendance: number | null;
   is_recurring: boolean;
   recurrence_rule: string | null;
   status: "published" | "draft" | "cancelled";
