@@ -1,8 +1,5 @@
 /**
- * Event Cleanup Script — Approved by Mike
- * 1. Delete junk/broken events
- * 2. Flag adult-only events as not_for_kids  
- * 3. Remove duplicates (keep earliest future instance)
+ * Venue Audit Cleanup — Add missing community venues, deactivate bad fits
  */
 import { readFileSync } from "fs";
 import { resolve } from "path";
@@ -27,160 +24,164 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-let deletedCount = 0;
-let flaggedCount = 0;
+async function addVenueIfNotExists(venue: {
+  name: string; city: string; county: string; state: string;
+  website?: string; scrape_url?: string | null;
+  categories: string[]; description: string;
+}) {
+  const { data: existing } = await supabase
+    .from("venues")
+    .select("id, name")
+    .ilike("name", `%${venue.name.split(" ").slice(0, 2).join(" ")}%`)
+    .limit(1);
 
-async function deleteByName(name: string, venue?: string) {
-  const query = supabase.from("events").delete().eq("name", name);
-  if (venue) {
-    // Need to look up venue_id
-    const { data: v } = await supabase.from("venues").select("id").ilike("name", `%${venue}%`).limit(1);
-    if (v?.[0]) query.eq("venue_id", v[0].id);
+  if (existing && existing.length > 0) {
+    console.log(`  ⏭️  Already exists: ${existing[0].name}`);
+    return;
   }
-  const { error, count } = await query.select("id");
-  if (error) console.log(`  ❌ Error deleting "${name}": ${error.message}`);
-  else { deletedCount++; }
-}
 
-async function deleteByNameLike(pattern: string) {
-  const { data, error } = await supabase.from("events").select("id, name").ilike("name", pattern);
-  if (error || !data?.length) return;
-  for (const e of data) {
-    await supabase.from("events").delete().eq("id", e.id);
-    deletedCount++;
-    console.log(`  🗑️ Deleted: "${e.name}"`);
-  }
-}
-
-async function flagNotForKids(name: string, reason: string) {
   const { data, error } = await supabase
-    .from("events")
-    .update({ event_type: "not_for_kids", not_for_kids_reason: reason })
-    .ilike("name", `%${name}%`)
+    .from("venues")
+    .insert({
+      ...venue,
+      state: "GA",
+      is_active: true,
+    })
     .select("id, name");
-  if (error) console.log(`  ❌ Error flagging "${name}": ${error.message}`);
-  else if (data?.length) { flaggedCount += data.length; console.log(`  🚫 Flagged: "${data[0].name}" — ${reason}`); }
+
+  if (error) console.log(`  ❌ Error: ${error.message}`);
+  else console.log(`  ✅ Added: ${data?.[0]?.name} (${data?.[0]?.id})`);
+}
+
+async function deactivateVenue(namePart: string, reason: string) {
+  const { data, error } = await supabase
+    .from("venues")
+    .update({ is_active: false })
+    .ilike("name", `%${namePart}%`)
+    .select("id, name");
+
+  if (error) console.log(`  ❌ Error: ${error.message}`);
+  else if (data?.length) console.log(`  🚫 Deactivated: ${data[0].name} — ${reason}`);
+  else console.log(`  ⏭️  Not found: ${namePart}`);
 }
 
 async function main() {
-  console.log("=== EVENT CLEANUP ===\n");
+  console.log("=== VENUE AUDIT CLEANUP ===\n");
 
   // ============================================
-  // STEP 1: Delete junk/broken event names
+  // STEP 1: Add community-verified local venues
   // ============================================
-  console.log("--- Step 1: Delete Junk/Broken Events ---");
+  console.log("--- Step 1: Add Missing Community Venues ---");
 
-  // North Georgia Zoo junk
-  await deleteByNameLike("Friday-Sunday");
-  await deleteByNameLike("June 1st%9am%");
-  await deleteByNameLike("June 8th%9am%");
-  await deleteByNameLike("June 29th%9am%");
-  await deleteByNameLike("November 7th-8th%");
-  await deleteByNameLike("Saturdays in December%");
-  await deleteByNameLike("To apply $1 off%");
-  await deleteByNameLike("Open daily during Spring Break%");
-  await deleteByNameLike("Open on Columbus Day%");
-  await deleteByNameLike("WILD AMERICA TOURS%");
+  await addVenueIfNotExists({
+    name: "Etowah River Park",
+    city: "Canton", county: "Cherokee", state: "GA",
+    website: "https://www.cantonga.gov/parks-recreation/etowah-river-park",
+    scrape_url: null, // Events come from cantonga.gov — no dedicated calendar
+    categories: ["parks", "outdoor", "festivals"],
+    description: "Canton's largest park — splash pad, playground, walking trails. Hosts Wing & Rock Fest, Riverfest, Eggstravaganza, and other community festivals.",
+  });
 
-  // Pettit Creek Farms junk
-  await deleteByNameLike("Pettit Creek Farms!");
+  await addVenueIfNotExists({
+    name: "Cherokee Veterans Park",
+    city: "Canton", county: "Cherokee", state: "GA",
+    website: "https://playcherokee.org",
+    scrape_url: null, // Events come from playcherokee.org (already scraping Cherokee County Parks)
+    categories: ["parks", "outdoor", "recreation"],
+    description: "Major Cherokee County park — indoor rec center, rock climbing wall, playgrounds, walking paths. Hosts Flashlight Egg Hunt, Touch-A-Truck, and Christmas lights.",
+  });
 
-  // Explore Canton / Farmers Market taglines
-  await deleteByNameLike("Your guide to Canton%");
+  await addVenueIfNotExists({
+    name: "The Mill on Etowah",
+    city: "Canton", county: "Cherokee", state: "GA",
+    website: "https://www.themillonetowah.com",
+    scrape_url: null, // No dedicated events calendar found
+    categories: ["entertainment", "shopping", "events"],
+    description: "Canton's mixed-use event hub in a renovated cotton mill. Hosts Easter Egg Crawl, community events, restaurants, and shops.",
+  });
 
-  // Atlanta Botanical Garden Gainesville generic
-  await deleteByNameLike("Gainesville Events, Classes and Tours%");
+  await addVenueIfNotExists({
+    name: "Canton First Friday",
+    city: "Canton", county: "Cherokee", state: "GA",
+    website: "https://www.explorecantonga.com",
+    scrape_url: null, // Seasonal May-Oct, listed on explorecantonga.com
+    categories: ["festivals", "community", "outdoor"],
+    description: "Downtown Canton's monthly block party (May-October). Live music, food trucks, vendors, and family fun on the streets of historic downtown.",
+  });
 
-  // Fernbank image path as name
-  await deleteByNameLike("!/media/%");
+  await addVenueIfNotExists({
+    name: "Cherokee County Aquatic Center",
+    city: "Holly Springs", county: "Cherokee", state: "GA",
+    website: "https://playcherokee.org",
+    scrape_url: null, // Programs listed on playcherokee.org
+    categories: ["recreation", "sports", "swimming"],
+    description: "County aquatic center with pools, splash zones, swim lessons, and water programs. Affordable family fun in Holly Springs.",
+  });
 
-  console.log(`\n  Total deleted: ${deletedCount}\n`);
+  await addVenueIfNotExists({
+    name: "Hickory Flat Public Library",
+    city: "Canton", county: "Cherokee", state: "GA",
+    website: "https://sequoyahregionallibrary.com",
+    scrape_url: "https://sequoyahregionallibrary.evanced.info/signup/calendar",
+    categories: ["library", "education", "storytime"],
+    description: "Part of the Sequoyah Regional Library System. Free Family Storytime, kids programs, and summer reading events.",
+  });
 
-  // ============================================
-  // STEP 2: Flag adult-only events
-  // ============================================
-  console.log("--- Step 2: Flag Adult-Only Events ---");
-
-  // Confirmed adult-only from audit
-  await flagNotForKids("City Winery Tour + Tasting", "Alcohol/bar event");
-  await flagNotForKids("Brewer's Alley Spring Social", "Alcohol/bar event");
-  await flagNotForKids("Chef & Winemaker Dinner", "Alcohol/bar event");
-  await flagNotForKids("who says learning can't come with a garnish", "Adult cocktail event");
-
-  // Probably not for kids — from audit review
-  await flagNotForKids("SCANDAL! The Bare", "Adult comedy show");
-  await flagNotForKids("AARP TAX AIDE", "Senior service — not for kids");
-  await flagNotForKids("Active Beginnings for Adults/Seniors", "Adult/senior program");
-  await flagNotForKids("ESL/English Classes", "Adult education");
-  await flagNotForKids("Mat Yoga - Monday", "Adult fitness class");
-  await flagNotForKids("Line Dancing", "Adult activity");
-  await flagNotForKids("Yoga Class at Ponce", "Adult fitness class");
-  await flagNotForKids("RUMC Job Networking", "Adult job networking");
-  await flagNotForKids("Ask The Social Worker", "Adult social services");
-  await flagNotForKids("Mahjong Mondays", "Adult activity");
-  await flagNotForKids("Educator Soiree", "Adult-only event");
-  await flagNotForKids("Beastly Feast Gala", "Adult gala event");
-  await flagNotForKids("no chaperones", "Explicitly adult event");
-  await flagNotForKids("Primäl Crüe", "Adult tribute concert");
-  await flagNotForKids("Talk Dirty", "Adult tribute concert");
-  await flagNotForKids("Letterbomb", "Adult tribute concert");
-  await flagNotForKids("Purple Madness", "Adult tribute concert");
-  await flagNotForKids("ATL Blues Festival", "Adult music festival");
-  await flagNotForKids("Turandot", "Adult opera");
-  await flagNotForKids("Frida", "Adult dance performance");
-  await flagNotForKids("Las Alucines", "Adult show");
-  await flagNotForKids("Brit Floyd", "Adult tribute concert");
-  await flagNotForKids("David Sedaris", "Adult comedy/author");
-  await flagNotForKids("Marisela", "Adult concert");
-  await flagNotForKids("Pride Night", "Adult-only event");
-
-  console.log(`\n  Total flagged: ${flaggedCount}\n`);
+  await addVenueIfNotExists({
+    name: "Reeves House Visual Arts Center",
+    city: "Woodstock", county: "Cherokee", state: "GA",
+    website: "https://www.reeveshouse.org",
+    scrape_url: "https://www.reeveshouse.org/events",
+    categories: ["arts", "gallery", "education"],
+    description: "Free community art gallery in Woodstock. Rotating exhibits, art workshops, community events.",
+  });
 
   // ============================================
-  // STEP 3: Remove duplicates (keep earliest future)
+  // STEP 2: Deactivate bad-fit venues
   // ============================================
-  console.log("--- Step 3: Remove Duplicates ---");
+  console.log("\n--- Step 2: Deactivate Bad-Fit Venues ---");
 
-  const today = new Date().toISOString().split("T")[0];
-  const { data: allEvents } = await supabase
-    .from("events")
-    .select("id, name, start_date, venue_id")
-    .eq("status", "published")
-    .gte("start_date", today)
-    .order("start_date", { ascending: true });
+  await deactivateVenue("Cobb Energy", "45 min from Canton, almost entirely adult shows (opera, tribute concerts, comedy)");
+  await deactivateVenue("Callanwolde", "~1 hr from Canton, adult-focused fine arts, very few kids events");
 
-  if (allEvents) {
-    const seen = new Map<string, { id: string; start_date: string }>();
-    let dupeCount = 0;
+  // Also delete the leftover adult events from these venues
+  console.log("\n--- Step 3: Delete events from deactivated venues ---");
+  const { data: deactivated } = await supabase
+    .from("venues")
+    .select("id, name")
+    .eq("is_active", false);
 
-    for (const e of allEvents) {
-      const key = `${e.name.toLowerCase().trim()}|${e.venue_id}`;
-      if (seen.has(key)) {
-        // This is a duplicate — delete it
-        await supabase.from("events").delete().eq("id", e.id);
-        dupeCount++;
-        console.log(`  📋 Removed dupe: "${e.name}" (${e.start_date}) — kept ${seen.get(key)!.start_date}`);
-      } else {
-        seen.set(key, { id: e.id, start_date: e.start_date });
+  if (deactivated) {
+    for (const v of deactivated) {
+      const { data: events } = await supabase
+        .from("events")
+        .delete()
+        .eq("venue_id", v.id)
+        .select("id");
+      if (events?.length) {
+        console.log(`  🗑️ Deleted ${events.length} events from deactivated venue: ${v.name}`);
       }
     }
-    console.log(`\n  Total duplicates removed: ${dupeCount}`);
   }
 
   // ============================================
-  // FINAL SUMMARY
+  // FINAL: Count remaining
   // ============================================
-  const { count: remaining } = await supabase
+  const { count: activeVenues } = await supabase
+    .from("venues")
+    .select("*", { count: "exact", head: true })
+    .eq("is_active", true);
+
+  const { count: totalEvents } = await supabase
     .from("events")
     .select("*", { count: "exact", head: true })
     .eq("status", "published")
     .neq("event_type", "not_for_kids");
 
   console.log(`\n${"=".repeat(50)}`);
-  console.log(`CLEANUP COMPLETE`);
-  console.log(`  Junk events deleted: ${deletedCount}`);
-  console.log(`  Adult events flagged: ${flaggedCount}`);
-  console.log(`  Clean events remaining: ${remaining}`);
+  console.log(`VENUE AUDIT CLEANUP COMPLETE`);
+  console.log(`  Active venues: ${activeVenues}`);
+  console.log(`  Clean events: ${totalEvents}`);
   console.log(`${"=".repeat(50)}`);
 }
 
