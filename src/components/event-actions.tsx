@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "./auth-provider";
 import { buildGoogleCalendarUrl } from "@/lib/google-calendar";
-import { MoreHorizontal, CalendarPlus, Share2, EyeOff, Flag, Check, ShieldAlert } from "lucide-react";
+import { MoreHorizontal, CalendarPlus, Share2, EyeOff, Flag, Check, ShieldAlert, X } from "lucide-react";
 import type { Event } from "@/lib/types";
 
 type Props = {
@@ -15,6 +15,15 @@ type Props = {
 
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "";
 
+const NOT_FOR_KIDS_REASONS = [
+  "Adult content",
+  "Too mature for kids",
+  "Alcohol/bar event",
+  "Not family-friendly",
+  "Wrong audience",
+  "Holiday/closure (not an event)",
+];
+
 export default function EventActions({ event, onHide }: Props) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -23,21 +32,24 @@ export default function EventActions({ event, onHide }: Props) {
   const [reported, setReported] = useState(false);
   const [shared, setShared] = useState(false);
   const [flaggedNotForKids, setFlaggedNotForKids] = useState(false);
+  const [showReasonPicker, setShowReasonPicker] = useState(false);
+  const [customReason, setCustomReason] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
 
   const isAdmin = user?.email === ADMIN_EMAIL;
 
   // Close menu on outside click
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen && !showReasonPicker) return;
     function handleClick(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
+        setShowReasonPicker(false);
       }
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, [menuOpen]);
+  }, [menuOpen, showReasonPicker]);
 
   function handleCalendar() {
     window.open(buildGoogleCalendarUrl(event), "_blank");
@@ -91,21 +103,31 @@ export default function EventActions({ event, onHide }: Props) {
     setReported(true);
   }
 
-  async function handleNotForKids() {
+  function handleNotForKidsClick() {
     if (!user) { router.push("/subscribe"); return; }
     setMenuOpen(false);
+    setShowReasonPicker(true);
+  }
+
+  async function submitNotForKids(reason: string) {
+    if (!user || !reason.trim()) return;
+    setShowReasonPicker(false);
 
     if (isAdmin) {
-      // Admin: immediately flag the event
-      await supabase.from("events").update({ event_type: "not_for_kids" }).eq("id", event.id);
+      // Admin: immediately flag the event with reason
+      await supabase
+        .from("events")
+        .update({ event_type: "not_for_kids", not_for_kids_reason: reason.trim() })
+        .eq("id", event.id);
       setFlaggedNotForKids(true);
       onHide?.(event.id);
     } else {
-      // Regular user: record a report
+      // Regular user: record a report with the reason
       await supabase.from("user_event_interactions").insert({
         user_id: user.id,
         event_id: event.id,
         interaction_type: "not_for_kids_report",
+        report_reason: reason.trim(),
       });
 
       // Check if 3+ users have now reported this event
@@ -116,13 +138,16 @@ export default function EventActions({ event, onHide }: Props) {
         .eq("interaction_type", "not_for_kids_report");
 
       if (count && count >= 3) {
-        // Auto-flag the event
-        await supabase.from("events").update({ event_type: "not_for_kids" }).eq("id", event.id);
+        await supabase
+          .from("events")
+          .update({ event_type: "not_for_kids", not_for_kids_reason: reason.trim() })
+          .eq("id", event.id);
         onHide?.(event.id);
       }
 
       setFlaggedNotForKids(true);
     }
+    setCustomReason("");
   }
 
   return (
@@ -153,7 +178,7 @@ export default function EventActions({ event, onHide }: Props) {
           </button>
           <div className="mx-3 my-1 border-t border-gray-100" />
           <button
-            onClick={handleNotForKids}
+            onClick={handleNotForKidsClick}
             disabled={flaggedNotForKids}
             className="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm text-gray-500 hover:bg-gray-50 disabled:text-gray-300 transition-colors"
           >
@@ -177,6 +202,53 @@ export default function EventActions({ event, onHide }: Props) {
           </button>
         </div>
       )}
+
+      {/* Not-for-kids reason picker */}
+      {showReasonPicker && (
+        <div className="absolute right-0 top-10 z-30 w-64 rounded-xl border border-gray-200 bg-white shadow-xl animate-in fade-in zoom-in-95 duration-150">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+            <span className="text-sm font-semibold text-gray-700">Why isn&apos;t this for kids?</span>
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowReasonPicker(false); }}
+              className="rounded p-0.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="py-1">
+            {NOT_FOR_KIDS_REASONS.map((reason) => (
+              <button
+                key={reason}
+                onClick={(e) => { e.stopPropagation(); submitNotForKids(reason); }}
+                className="flex w-full items-center px-4 py-2 text-left text-sm text-gray-600 hover:bg-orange-50 hover:text-orange-700 transition-colors"
+              >
+                {reason}
+              </button>
+            ))}
+          </div>
+          <div className="border-t border-gray-100 px-3 py-2">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={customReason}
+                onChange={(e) => setCustomReason(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && customReason.trim()) submitNotForKids(customReason); }}
+                placeholder="Other reason..."
+                className="flex-1 rounded border border-gray-200 px-2 py-1.5 text-xs text-gray-700 focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
+                onClick={(e) => e.stopPropagation()}
+              />
+              <button
+                onClick={(e) => { e.stopPropagation(); if (customReason.trim()) submitNotForKids(customReason); }}
+                disabled={!customReason.trim()}
+                className="rounded bg-orange-500 px-2 py-1.5 text-xs font-medium text-white hover:bg-orange-600 disabled:opacity-40 transition-colors"
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

@@ -647,8 +647,8 @@ export function validateScrapedEvents(
       continue;
     }
 
-    // 8. Closures (museum closed, park closed, etc.)
-    if (/\b(museum|park|center|facility)?\s*closed/i.test(lower) || /closing\s*early/i.test(lower)) {
+    // 8. Closures (museum closed, park closed, holiday closure, etc.)
+    if (/\b(closed|closure|closing\s*early)\b/i.test(lower)) {
       rejected.push({ event: e, reason: `Closure notice: "${name}"` });
       continue;
     }
