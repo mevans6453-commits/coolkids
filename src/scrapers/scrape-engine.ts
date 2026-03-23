@@ -416,6 +416,7 @@ async function saveEvents(venueId: string, events: ScrapedEvent[]): Promise<numb
     if (!event.cost && !event.is_free && event.cost_min === null && event.cost_max === null && !event.pricing_notes) {
       event.pricing_notes = "Check venue website for pricing";
     }
+    // Check 1: Exact name + date match (update existing event)
     const { data: existing } = await getSupabase()
       .from("events")
       .select("id")
@@ -423,6 +424,26 @@ async function saveEvents(venueId: string, events: ScrapedEvent[]): Promise<numb
       .eq("name", event.name)
       .eq("start_date", event.start_date)
       .limit(1);
+
+    // Check 2: Same venue + same date but different name (fuzzy dedup)
+    // This catches cases like "Thunderbirds Headline..." and "Wings Over North Georgia Air Show"
+    // which are the same event with different names extracted from different parts of the page
+    let dateMatchId: string | null = null;
+    if (!existing || existing.length === 0) {
+      const { data: dateMatch } = await getSupabase()
+        .from("events")
+        .select("id, name")
+        .eq("venue_id", venueId)
+        .eq("start_date", event.start_date)
+        .eq("status", "published")
+        .limit(1);
+      
+      if (dateMatch && dateMatch.length > 0) {
+        // Same venue, same date — this is likely a duplicate with a different name
+        console.log(`  [DB] Skipped duplicate: "${event.name}" — venue already has "${dateMatch[0].name}" on ${event.start_date}`);
+        continue;
+      }
+    }
 
     if (existing && existing.length > 0) {
       // Check if event_type was manually set to something the scraper wouldn't produce
