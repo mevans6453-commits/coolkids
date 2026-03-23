@@ -152,13 +152,13 @@ export function getProximityTier(
   if (expectedAttendance && expectedAttendance >= 5000) {
     return "worth-the-trip";
   }
-  if (distanceMiles <= 15) return "near";
-  if (distanceMiles <= 40) return "short-drive";
-  return "worth-the-trip";
+  if (distanceMiles <= 25) return "near";        // ~30 min drive
+  if (distanceMiles <= 50) return "short-drive";  // ~1 hour drive
+  return "worth-the-trip";                        // 1.5+ hours
 }
 
 export const TIER_LABELS: Record<ProximityTier, { emoji: string; title: string; subtitle: string }> = {
-  near: { emoji: "📍", title: "Near You", subtitle: "Within 15 miles" },
-  "short-drive": { emoji: "🚗", title: "A Short Drive", subtitle: "15–40 miles away" },
-  "worth-the-trip": { emoji: "🎪", title: "Worth the Trip", subtitle: "40+ miles or big events" },
+  near: { emoji: "📍", title: "Near You", subtitle: "Within 30 minutes" },
+  "short-drive": { emoji: "🚗", title: "A Short Drive", subtitle: "30 min – 1 hour away" },
+  "worth-the-trip": { emoji: "🎪", title: "Worth the Trip", subtitle: "Day trip or big event" },
 };
