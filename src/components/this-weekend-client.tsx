@@ -320,7 +320,7 @@ function FeaturedEventCard({
               </span>
               {event.categories?.slice(0, 2).map((cat) => (
                 <span key={cat} className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${getCategoryBadgeClasses(cat)}`}>
-                  {cat}
+                  {(cat.split("-").map(w => w[0].toUpperCase() + w.slice(1)).join(" ")).replace("And ", "& ")}
                 </span>
               ))}
             </div>

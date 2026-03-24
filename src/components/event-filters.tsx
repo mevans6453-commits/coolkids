@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { ChevronDown, X, LayoutGrid, List, CalendarDays } from "lucide-react";
-import { CATEGORIES, type AgeFilter } from "@/lib/types";
+import { CATEGORIES, CATEGORY_LABELS, type AgeFilter } from "@/lib/types";
 
 export type SortOption = "date" | "for-you" | "venue" | "trending" | "recent";
 export type TimeFilter = "all" | "this-week" | "this-weekend" | "this-month" | "next-month";
@@ -21,8 +21,7 @@ type Props = {
   onCategoryToggle: (cat: string) => void;
   ageFilter: AgeFilter;
   onAgeFilterChange: (f: AgeFilter) => void;
-  showHours: boolean;
-  onShowHoursChange: (show: boolean) => void;
+
   groupBy: GroupBy;
   onGroupByChange: (g: GroupBy) => void;
   onClearFilters: () => void;
@@ -49,14 +48,14 @@ export default function EventFilters(props: Props) {
   const {
     sortBy, onSortChange, timeFilter, onTimeFilterChange,
     costFilter, onCostFilterChange, selectedCategories, onCategoryToggle,
-    ageFilter, onAgeFilterChange, showHours, onShowHoursChange,
+    ageFilter, onAgeFilterChange,
     groupBy, onGroupByChange,
     onClearFilters, resultCount, totalCount, viewMode, onViewModeChange,
   } = props;
 
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
-  const hasFilters = timeFilter !== "all" || costFilter !== "all" || selectedCategories.length > 0 || sortBy !== "date" || ageFilter !== "all" || showHours || groupBy !== "none";
+  const hasFilters = timeFilter !== "all" || costFilter !== "all" || selectedCategories.length > 0 || sortBy !== "date" || ageFilter !== "all" || groupBy !== "none";
 
   // Count active filters for badge
   const activeFilterCount = [
@@ -65,7 +64,6 @@ export default function EventFilters(props: Props) {
     costFilter !== "all",
     selectedCategories.length > 0,
     ageFilter !== "all",
-    showHours,
     groupBy !== "none",
   ].filter(Boolean).length;
 
@@ -137,7 +135,7 @@ export default function EventFilters(props: Props) {
               onChange={() => onCategoryToggle(cat)}
               className="h-3.5 w-3.5 rounded border-gray-300 text-[var(--primary)]"
             />
-            {cat}
+            {CATEGORY_LABELS[cat] || cat}
           </label>
         ))}
       </Dropdown>
@@ -155,15 +153,6 @@ export default function EventFilters(props: Props) {
         ))}
       </Dropdown>
 
-      <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50">
-        <input
-          type="checkbox"
-          checked={showHours}
-          onChange={(e) => onShowHoursChange(e.target.checked)}
-          className="h-3.5 w-3.5 rounded border-gray-300 text-[var(--primary)]"
-        />
-        Hours
-      </label>
 
       {hasFilters && (
         <button onClick={onClearFilters} className="text-xs text-[var(--primary)] hover:underline">

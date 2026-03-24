@@ -29,7 +29,6 @@ export default function EventsClient({ events, interactionCounts }: Props) {
   const [costFilter, setCostFilter] = useState<CostFilter>("all");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [ageFilter, setAgeFilter] = useState<AgeFilter>("all");
-  const [showHours, setShowHours] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [groupBy, setGroupBy] = useState<GroupBy>("none");
   const [expandedVenues, setExpandedVenues] = useState<Set<string>>(new Set());
@@ -106,7 +105,6 @@ export default function EventsClient({ events, interactionCounts }: Props) {
     setCostFilter("all");
     setSelectedCategories([]);
     setAgeFilter("all");
-    setShowHours(false);
     setGroupBy("none");
   }
 
@@ -181,20 +179,17 @@ export default function EventsClient({ events, interactionCounts }: Props) {
       );
     }
 
-    // Event type filter — hide 'hours' and 'not_for_kids' by default unless toggle is on
-    if (!showHours) {
-      result = result.filter((e) => e.event_type !== "hours" && e.event_type !== "not_for_kids");
-    } else {
-      result = result.filter((e) => e.event_type !== "not_for_kids");
-    }
+    // Hide not_for_kids events
+    result = result.filter((e) => e.event_type !== "not_for_kids");
 
     // Age filter — show events that OVERLAP the selected range
     // Null-age events only pass if they have kid-friendly categories
     if (ageFilter !== "all") {
       const range = AGE_FILTER_RANGES[ageFilter];
       const KID_FRIENDLY_CATS = new Set([
-        "farm", "zoo", "park", "museum", "garden", "outdoor", "seasonal",
-        "education", "arts", "aquatic", "festival", "sports", "market",
+        "hands-on-art", "animals-nature", "shows-performances", "science-stem",
+        "festivals-fairs", "seasonal-holidays", "active-sports", "markets-shopping",
+        "storytime-learning", "family-fun",
       ]);
       if (range) {
         result = result.filter((e) => {
@@ -229,7 +224,7 @@ export default function EventsClient({ events, interactionCounts }: Props) {
     result = mergeConsecutiveEvents(result);
 
     return { events: result, totalAfterHidden };
-  }, [events, hiddenIds, hiddenVenueIds, timeFilter, costFilter, selectedCategories, ageFilter, showHours, sortBy, interactionCounts]);
+  }, [events, hiddenIds, hiddenVenueIds, timeFilter, costFilter, selectedCategories, ageFilter, sortBy, interactionCounts]);
 
   // Group events by category or venue
   const grouped = useMemo(() => {
@@ -452,8 +447,6 @@ export default function EventsClient({ events, interactionCounts }: Props) {
         onCategoryToggle={toggleCategory}
         ageFilter={ageFilter}
         onAgeFilterChange={setAgeFilter}
-        showHours={showHours}
-        onShowHoursChange={setShowHours}
         groupBy={groupBy}
         onGroupByChange={setGroupBy}
         onClearFilters={clearFilters}

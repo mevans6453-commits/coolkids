@@ -144,22 +144,32 @@ export type UserEventInteraction = {
   created_at: string;
 };
 
-// Category options for venues and events
+// Category options for venues and events — parent-friendly activity-based
 export const CATEGORIES = [
-  "farm",
-  "museum",
-  "park",
-  "zoo",
-  "garden",
-  "outdoor",
-  "arts",
-  "sports",
-  "seasonal",
-  "market",
-  "festival",
-  "education",
-  "aquatic",
-  "free",
+  "hands-on-art",
+  "animals-nature",
+  "shows-performances",
+  "science-stem",
+  "festivals-fairs",
+  "seasonal-holidays",
+  "active-sports",
+  "markets-shopping",
+  "storytime-learning",
+  "family-fun",
 ] as const;
+
+// Human-readable labels with emoji
+export const CATEGORY_LABELS: Record<string, string> = {
+  "hands-on-art": "🎨 Hands-On Art",
+  "animals-nature": "🦕 Animals & Nature",
+  "shows-performances": "🎭 Shows & Performances",
+  "science-stem": "🔬 Science & STEM",
+  "festivals-fairs": "🎪 Festivals & Fairs",
+  "seasonal-holidays": "🐣 Seasonal & Holidays",
+  "active-sports": "🏃 Active & Sports",
+  "markets-shopping": "🛍️ Markets & Shopping",
+  "storytime-learning": "📚 Storytime & Learning",
+  "family-fun": "🎉 Family Fun",
+};
 
 export type Category = (typeof CATEGORIES)[number];
