@@ -5,7 +5,7 @@ import { Calendar } from "lucide-react";
 import EventsClient from "@/components/events-client";
 
 // Events page — shows upcoming family events from the database
-export const revalidate = 3600; // Refresh data every hour
+export const revalidate = 300; // Refresh data every 5 minutes
 
 export default async function EventsPage() {
   // Fetch all upcoming events with venue info

@@ -2,7 +2,7 @@ import { supabase } from "@/lib/supabase";
 import type { Event, DadJoke as DadJokeType } from "@/lib/types";
 import ThisWeekendClient from "@/components/this-weekend-client";
 
-export const revalidate = 3600;
+export const revalidate = 300;
 
 export default async function ThisWeekendPage() {
   const now = new Date();

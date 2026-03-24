@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import type { DadJoke as DadJokeType } from "@/lib/types";
 import DadJoke from "@/components/dad-joke";
 
-export const revalidate = 3600; // Re-fetch joke at most every hour
+export const revalidate = 300; // Refresh every 5 minutes
 
 // Homepage — introduces CoolKids and highlights key features
 export default async function HomePage() {

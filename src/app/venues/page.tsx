@@ -4,7 +4,7 @@ import { MapPin } from "lucide-react";
 import VenuesClient from "@/components/venues-client";
 
 // Venues page — shows all tracked venues in a compact table layout
-export const revalidate = 3600; // Refresh data every hour
+export const revalidate = 300; // Refresh data every 5 minutes
 
 export default async function VenuesPage() {
   // Fetch all active venues from Supabase
