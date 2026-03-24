@@ -1,4 +1,25 @@
 /**
+ * Returns a short display label for a category slug.
+ * e.g. "animals-nature" → "Animals & Nature"
+ */
+const SHORT_LABELS: Record<string, string> = {
+  "hands-on-art": "Art",
+  "animals-nature": "Animals & Nature",
+  "shows-performances": "Shows",
+  "science-stem": "Science & STEM",
+  "festivals-fairs": "Festivals",
+  "seasonal-holidays": "Seasonal",
+  "active-sports": "Active & Sports",
+  "markets-shopping": "Markets",
+  "storytime-learning": "Learning",
+  "family-fun": "Family Fun",
+};
+
+export function getCategoryShortLabel(category: string): string {
+  return SHORT_LABELS[category] || category;
+}
+
+/**
  * Returns Tailwind classes for category badges based on the new parent-friendly categories.
  * Soft pastel palette — readable but not competing for attention.
  */

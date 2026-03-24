@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { Event, DadJoke as DadJokeType } from "@/lib/types";
 import { decodeHtmlEntities } from "@/lib/html-utils";
-import { getCategoryBadgeClasses } from "@/lib/category-colors";
+import { getCategoryBadgeClasses, getCategoryShortLabel } from "@/lib/category-colors";
 import { MapPin, ExternalLink, Calendar, ChevronRight, Sparkles, Clock } from "lucide-react";
 import InteractionButtons from "./interaction-buttons";
 import EventActions from "./event-actions";
@@ -320,7 +320,7 @@ function FeaturedEventCard({
               </span>
               {event.categories?.slice(0, 2).map((cat) => (
                 <span key={cat} className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${getCategoryBadgeClasses(cat)}`}>
-                  {(cat.split("-").map(w => w[0].toUpperCase() + w.slice(1)).join(" ")).replace("And ", "& ")}
+                  {getCategoryShortLabel(cat)}
                 </span>
               ))}
             </div>

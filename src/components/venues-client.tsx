@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "./auth-provider";
 import type { Venue } from "@/lib/types";
 import { Eye, EyeOff, LogIn, Search, ExternalLink } from "lucide-react";
-import { getCategoryBadgeClasses } from "@/lib/category-colors";
+import { getCategoryBadgeClasses, getCategoryShortLabel } from "@/lib/category-colors";
 
 type VenueFilter = "all" | "my";
 
@@ -213,7 +213,7 @@ export default function VenuesClient({ venues, eventCounts }: Props) {
                       key={cat}
                       className={`rounded-full px-2 py-0.5 text-[11px] font-medium leading-tight ${getCategoryBadgeClasses(cat)}`}
                     >
-                      {cat}
+                      {getCategoryShortLabel(cat)}
                     </span>
                   ))}
                   {(venue.categories?.length || 0) > 3 && (
@@ -297,7 +297,7 @@ export default function VenuesClient({ venues, eventCounts }: Props) {
                           key={cat}
                           className={`rounded-full px-2 py-0.5 text-[11px] font-medium leading-tight ${getCategoryBadgeClasses(cat)}`}
                         >
-                          {cat}
+                          {getCategoryShortLabel(cat)}
                         </span>
                       ))}
                     </div>

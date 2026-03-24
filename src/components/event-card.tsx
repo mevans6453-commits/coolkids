@@ -2,7 +2,7 @@ import type { Event } from "@/lib/types";
 import { MapPin, ExternalLink } from "lucide-react";
 import { formatDateRange } from "@/lib/event-utils";
 import { decodeHtmlEntities } from "@/lib/html-utils";
-import { getCategoryBadgeClasses } from "@/lib/category-colors";
+import { getCategoryBadgeClasses, getCategoryShortLabel } from "@/lib/category-colors";
 import InteractionButtons from "./interaction-buttons";
 import EventActions from "./event-actions";
 
@@ -75,7 +75,7 @@ export default function EventCard({ event, starCount, attendingCount, onHide, vi
               <div className="flex flex-wrap gap-1">
                 {event.categories?.slice(0, 3).map((cat) => (
                   <span key={cat} className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${getCategoryBadgeClasses(cat)}`}>
-                    {(cat.split("-").map(w => w[0].toUpperCase() + w.slice(1)).join(" ")).replace("And ", "& ")}
+                    {getCategoryShortLabel(cat)}
                   </span>
                 ))}
               </div>
