@@ -7,6 +7,7 @@ import { jsonldStrategy } from "./jsonld-strategy";
 import { icalStrategy } from "./ical-strategy";
 import { rssStrategy } from "./rss-strategy";
 import { htmlStrategy } from "./html-strategy";
+import { firecrawlStrategy } from "./firecrawl-strategy";
 import { apifyStrategy } from "./apify-strategy";
 import { apifyChromiumStrategy } from "./apify-chromium-strategy";
 import type { ScrapeStrategy } from "./types";
@@ -17,6 +18,7 @@ export const ALL_STRATEGIES: ScrapeStrategy[] = [
   icalStrategy,             // Standard calendar format, very reliable
   rssStrategy,              // Standard feed format
   htmlStrategy,             // Free, no API needed, works on many sites
+  firecrawlStrategy,        // JS-rendering via Firecrawl API (separate credit pool)
   apifyStrategy,            // Fallback: RAG browser, cheaper but no JS
   apifyChromiumStrategy,    // Last resort: headless Chromium, handles JS calendars
 ];
