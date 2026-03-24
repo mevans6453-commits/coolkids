@@ -33,7 +33,40 @@ export function isNonEventHeading(name: string): boolean {
     /hours/i,
     /directions/i,
     /events$/i,
+    /^search\s*results?$/i,
+    /^event\s*calendar$/i,
+    /^calendar$/i,
+    /^today$/i,
+    /^upcoming$/i,
+    /^featured$/i,
+    /^more\s*info$/i,
+    /^quick\s*links$/i,
+    /^navigation$/i,
+    /^menu$/i,
+    /^footer$/i,
+    /^header$/i,
+    /^sidebar$/i,
+    /^related$/i,
+    /^share$/i,
+    /^tags$/i,
+    /^categories$/i,
+    /^archives?$/i,
+    /^subscribe$/i,
+    /^follow\s*us/i,
+    /^connect/i,
+    /^event\s*details$/i,
+    /^your\s*guide/i,
+    /^reserve\s/i,
+    /^events\s+for\s+(january|february|march|april|may|june|july|august|september|october|november|december)/i,
+    /^(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{4}/i,
   ];
+
+  // Also skip if name contains a URL
+  if (/https?:\/\//.test(name)) return true;
+
+  // Skip if name is just a number
+  if (/^\d+$/.test(name.trim())) return true;
+
   return skipPatterns.some((p) => p.test(name));
 }
 
@@ -622,9 +655,25 @@ export function validateScrapedEvents(
       /^careers$/i, /^jobs$/i, /^newsletter$/i, /^sign\s*up$/i,
       /\border\s*(now|today)/i, /\bbuy\s*(now|today)/i, /\bshop\s*(now|today)/i,
       /^new\s*book\s*order/i, /^opening\s*(november|december|january|february)/i,
+      /^search\s*results?$/i, /^today$/i, /^featured$/i, /^calendar$/i,
+      /^your\s+guide/i, /^reserve\s+/i, /^additional\s+links$/i,
+      /^quick\s*(navigation|links)$/i, /^presented\s+by$/i,
+      /^events\s+for\s+/i, /^(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{4}\s*$/i,
     ];
     if (pageTitlePatterns.some((p) => p.test(lower))) {
       rejected.push({ event: e, reason: `Page title/nav/ad: "${name}"` });
+      continue;
+    }
+
+    // 4b. Name contains a URL (scraped navigation link)
+    if (/https?:\/\//.test(name)) {
+      rejected.push({ event: e, reason: `URL in event name: "${name}"` });
+      continue;
+    }
+
+    // 4c. Name is just a generic guide/intro sentence
+    if (name.length > 60 && /guide|lineup|unforgettable|welcome|explore/i.test(lower)) {
+      rejected.push({ event: e, reason: `Guide/intro text as name: "${name}"` });
       continue;
     }
 
