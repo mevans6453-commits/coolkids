@@ -224,11 +224,17 @@ export function extractCost(
 
   const notesPatterns = [
     /(?:kids|children)\s+(?:under|ages?\s+\d+(?:\s*[-–]\s*\d+)?)\s+free/i,
+    /(?:children|kids)\s+(?:\d+\s+and\s+under)\s+(?:are\s+)?free/i,
+    /(?:free\s+for\s+(?:kids|children)\s+(?:under|ages?\s+)\d+)/i,
     /(?:members?|military|seniors?|students?)\s+(?:free|discount|\d+%\s+off)/i,
     /family\s+(?:\d+-?pack|rate|discount)/i,
     /group\s+(?:rate|discount)/i,
     /free\s+(?:for|with)\s+\w+/i,
     /\d+%\s+off/i,
+    /included\s+with\s+(?:general\s+)?admission/i,
+    /(?:no\s+(?:additional|extra)\s+(?:cost|charge|fee))/i,
+    /(?:ages?\s+\d+\s*[-–]?\s*\d*\s*:\s*\$\d+)/i,
+    /(?:adults?\s*:?\s*\$\d+)/i,
   ];
   const noteMatches: string[] = [];
   for (const p of notesPatterns) {
@@ -237,9 +243,38 @@ export function extractCost(
   }
   if (noteMatches.length > 0) result.pricing_notes = noteMatches.join("; ");
 
-  if (/\bfree\s*(?:admission|entry|event)?\b/i.test(text) && !/free\s+for\b/i.test(text)) {
+  // Detect FREE events — expanded patterns
+  // But ignore "free parking", "free wifi", "free t-shirt" etc.
+  const freeIgnorePatterns = /free\s+(parking|wifi|wi-fi|t-shirt|shirt|bag|gift|water|snack|food|drink|beverage)/i;
+  const freePatterns = [
+    /\bfree\s*(?:admission|entry|event|and\s+\w+)?\b/i,  // "free", "free admission", "free and exclusive"
+    /\bno\s+(?:cost|charge|fee)\b/i,                       // "no cost", "no charge"
+    /\bcomplimentary\b/i,                                    // "complimentary"
+    /\bat\s+no\s+(?:additional\s+)?(?:cost|charge)\b/i,    // "at no additional cost"
+    /\bincluded\s+with\s+(?:general\s+)?(?:admission|membership|entry)\b/i,  // "included with admission"
+    /\bfree\s+(?:to\s+(?:attend|join|participate))\b/i,    // "free to attend"
+    /\bno\s+registration\s+fee\b/i,                         // "no registration fee"
+  ];
+  
+  const hasFreeSignal = freePatterns.some(p => p.test(text)) && !freeIgnorePatterns.test(text);
+  if (hasFreeSignal) {
     result.cost = "Free";
     result.is_free = true;
+    return result;
+  }
+
+  // Donation-based pricing
+  if (/\b(?:suggested\s+)?donation/i.test(text)) {
+    const donationAmount = text.match(/(?:suggested\s+)?donation\s*(?:of\s+)?\$(\d+)/i);
+    if (donationAmount) {
+      result.cost = `Suggested donation $${donationAmount[1]}`;
+      result.cost_min = 0;
+      result.cost_max = parseFloat(donationAmount[1]);
+    } else {
+      result.cost = "Donation-based";
+      result.cost_min = 0;
+      result.cost_max = 0;
+    }
     return result;
   }
 
