@@ -111,6 +111,7 @@ CoolKids is a local family events aggregator and community platform for parents 
 | 5 | firecrawl | Credits | ~5s | Yes | firecrawl-strategy.ts |
 | 6 | apify | Credits | ~15s | Partial | apify-strategy.ts |
 | 7 | apify-chromium | Credits | ~30-45s | Full | apify-chromium-strategy.ts |
+| 8 | firecrawl-json | 5 Credits | ~30-60s | Yes + AI | firecrawl-json-strategy.ts |
 
 ### Current Venue Strategy Breakdown (31 venues with events)
 - **jsonld** — 10 venues, 75 events (FREE)
