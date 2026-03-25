@@ -37,22 +37,19 @@ export default function RootLayout({
         <AuthProvider>
         {/* Navigation header */}
         <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-white/95 backdrop-blur">
-          {/* Top row: logo + auth/mobile menu */}
-          <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+          <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
             <a href="/" className="text-2xl font-bold text-[var(--primary)]">
               CoolKids
             </a>
-            <div className="flex items-center gap-2">
-              <AuthButton />
-              <div className="sm:hidden">
-                <MobileNav />
-              </div>
-            </div>
-          </div>
-          {/* Second row: desktop nav links */}
-          <div className="hidden sm:block border-t border-gray-100">
-            <div className="mx-auto max-w-6xl px-4 flex items-center h-10">
+            {/* Desktop nav — single row with logo */}
+            <div className="hidden sm:flex items-center gap-4">
               <DesktopNav />
+              <AuthButton />
+            </div>
+            {/* Mobile: auth + hamburger */}
+            <div className="flex items-center gap-2 sm:hidden">
+              <AuthButton />
+              <MobileNav />
             </div>
           </div>
         </header>
