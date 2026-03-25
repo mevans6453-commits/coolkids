@@ -71,6 +71,8 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events }: Props) {
   const [scrapingIds, setScrapingIds] = useState<Set<string>>(new Set());
   const [scrapingAll, setScrapingAll] = useState(false);
   const [expandedVenue, setExpandedVenue] = useState<string | null>(null);
+  const [sortColumn, setSortColumn] = useState<"name" | "events" | "status">("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   // Compute latest run per venue
   const latestRunByVenue = useMemo(() => {
@@ -103,18 +105,42 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events }: Props) {
     return Object.entries(stats).sort((a, b) => b[1].events - a[1].events);
   }, [venues, eventsByVenue]);
 
-  // Sort venues: error first, then empty, then success, then no runs
+  // Sort venues based on selected column
   const sortedVenues = useMemo(() => {
     return [...venues].sort((a, b) => {
+      const aEvents = (eventsByVenue.get(a.id) ?? []).filter(e => e.event_type !== 'hours').length;
+      const bEvents = (eventsByVenue.get(b.id) ?? []).filter(e => e.event_type !== 'hours').length;
       const aRun = latestRunByVenue.get(a.id);
       const bRun = latestRunByVenue.get(b.id);
-      const statusOrder: Record<string, number> = { error: 0, empty: 1, success: 2 };
-      const aOrder = aRun ? (statusOrder[aRun.status] ?? 3) : 3;
-      const bOrder = bRun ? (statusOrder[bRun.status] ?? 3) : 3;
-      if (aOrder !== bOrder) return aOrder - bOrder;
-      return a.name.localeCompare(b.name);
+
+      let cmp = 0;
+      if (sortColumn === "name") {
+        cmp = a.name.localeCompare(b.name);
+      } else if (sortColumn === "events") {
+        cmp = aEvents - bEvents;
+      } else if (sortColumn === "status") {
+        const statusOrder: Record<string, number> = { error: 0, empty: 1, success: 2 };
+        const aOrder = aRun ? (statusOrder[aRun.status] ?? 3) : 3;
+        const bOrder = bRun ? (statusOrder[bRun.status] ?? 3) : 3;
+        cmp = aOrder - bOrder;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [venues, latestRunByVenue]);
+  }, [venues, eventsByVenue, latestRunByVenue, sortColumn, sortDir]);
+
+  function handleSort(col: "name" | "events" | "status") {
+    if (sortColumn === col) {
+      setSortDir(prev => prev === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(col);
+      setSortDir(col === "events" ? "desc" : "asc");
+    }
+  }
+
+  function SortArrow({ col }: { col: string }) {
+    if (sortColumn !== col) return <ChevronDown className="h-3 w-3 text-gray-300" />;
+    return sortDir === "asc" ? <ChevronUp className="h-3 w-3 text-[var(--primary)]" /> : <ChevronDown className="h-3 w-3 text-[var(--primary)]" />;
+  }
 
   async function runScrape(venueId?: string) {
     if (venueId) {
@@ -184,12 +210,18 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events }: Props) {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left text-xs font-medium text-gray-500">
               <tr>
-                <th className="px-4 py-3">Venue</th>
+                <th className="px-4 py-3 cursor-pointer hover:text-gray-700 select-none" onClick={() => handleSort("name")}>
+                  <span className="inline-flex items-center gap-1">Venue <SortArrow col="name" /></span>
+                </th>
                 <th className="px-4 py-3">Strategy</th>
                 <th className="px-4 py-3">Last Scrape</th>
-                <th className="px-4 py-3 text-center">Events</th>
+                <th className="px-4 py-3 text-center cursor-pointer hover:text-gray-700 select-none" onClick={() => handleSort("events")}>
+                  <span className="inline-flex items-center gap-1 justify-center">Events <SortArrow col="events" /></span>
+                </th>
                 <th className="px-4 py-3 text-center">Hrs</th>
-                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3 cursor-pointer hover:text-gray-700 select-none" onClick={() => handleSort("status")}>
+                  <span className="inline-flex items-center gap-1">Status <SortArrow col="status" /></span>
+                </th>
                 <th className="px-4 py-3">Actions</th>
               </tr>
             </thead>

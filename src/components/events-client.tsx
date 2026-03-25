@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "./auth-provider";
 import type { Event, AgeFilter } from "@/lib/types";
 import { AGE_FILTER_RANGES } from "@/lib/types";
-import { ChevronDown, MapPin } from "lucide-react";
+import { ChevronDown, MapPin, Search, Lightbulb, X } from "lucide-react";
 import { getCategoryBadgeClasses } from "@/lib/category-colors";
 import EventCard from "./event-card";
 import EventCalendar from "./event-calendar";
@@ -34,6 +34,8 @@ export default function EventsClient({ events, interactionCounts }: Props) {
   const [expandedVenues, setExpandedVenues] = useState<Set<string>>(new Set());
   const [highlightedEventId, setHighlightedEventId] = useState<string | null>(null);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [tipDismissed, setTipDismissed] = useState(false);
   const searchParams = useSearchParams();
 
   // Handle ?event=UUID param — scroll to and highlight a shared event
@@ -121,6 +123,16 @@ export default function EventsClient({ events, interactionCounts }: Props) {
   const filtered = useMemo(() => {
     let result = events.filter((e) => !hiddenIds.has(e.id) && !hiddenVenueIds.has(e.venue_id));
     const totalAfterHidden = result.length;
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((e) =>
+        e.name.toLowerCase().includes(q) ||
+        (e.venue?.name ?? "").toLowerCase().includes(q) ||
+        (e.description ?? "").toLowerCase().includes(q)
+      );
+    }
 
     // Time filter
     if (timeFilter !== "all") {
@@ -224,7 +236,7 @@ export default function EventsClient({ events, interactionCounts }: Props) {
     result = mergeConsecutiveEvents(result);
 
     return { events: result, totalAfterHidden };
-  }, [events, hiddenIds, hiddenVenueIds, timeFilter, costFilter, selectedCategories, ageFilter, sortBy, interactionCounts]);
+  }, [events, hiddenIds, hiddenVenueIds, searchQuery, timeFilter, costFilter, selectedCategories, ageFilter, sortBy, interactionCounts]);
 
   // Group events by category or venue
   const grouped = useMemo(() => {
@@ -457,6 +469,26 @@ export default function EventsClient({ events, interactionCounts }: Props) {
         hasUserZip={!!userCoords}
       />
 
+      {/* Search bar */}
+      <div className="mt-4 relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <input
+          type="text"
+          placeholder="Search events, venues..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-10 text-sm text-gray-900 placeholder-gray-400 focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
       {filtered.events.length === 0 ? (
         <div className="mt-10 rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
           <p className="text-gray-500">No events match your filters.</p>
@@ -516,15 +548,38 @@ export default function EventsClient({ events, interactionCounts }: Props) {
         renderGrouped(viewMode === "grid" ? "grid" : "list")
       ) : (
         <div className={viewMode === "grid" ? "mt-6 grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "mt-6 space-y-2"}>
-          {filtered.events.map((event) => (
-            <EventCard
-              key={event.id}
-              event={event}
-              starCount={interactionCounts[event.id]?.stars ?? 0}
-              attendingCount={interactionCounts[event.id]?.attending ?? 0}
-              onHide={handleHide}
-              view={viewMode}
-            />
+          {filtered.events.map((event, idx) => (
+            <>
+              {/* Inline how-to tip after the 20th event */}
+              {idx === 20 && !tipDismissed && viewMode !== "grid" && (
+                <div key="how-to-tip" className="flex items-center gap-3 rounded-lg border border-blue-100 bg-blue-50/50 px-4 py-3">
+                  <Lightbulb className="h-5 w-5 text-blue-500 flex-shrink-0" />
+                  <p className="text-sm text-blue-700 flex-1">
+                    <strong>Tip:</strong> Seeing too many events from a venue? Go to the{" "}
+                    <a href="/venues" className="underline font-medium hover:text-blue-900">Venues page</a>{" "}
+                    and tap <strong>Hide</strong> to filter them out.
+                  </p>
+                  <button onClick={() => setTipDismissed(true)} className="rounded p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-100">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+              <div
+                key={event.id}
+                id={`event-${event.id}`}
+                className={highlightedEventId === event.id
+                  ? "rounded-xl ring-2 ring-blue-500 ring-offset-2 animate-pulse transition-all duration-500"
+                  : ""}
+              >
+                <EventCard
+                  event={event}
+                  starCount={interactionCounts[event.id]?.stars ?? 0}
+                  attendingCount={interactionCounts[event.id]?.attending ?? 0}
+                  onHide={handleHide}
+                  view={viewMode}
+                />
+              </div>
+            </>
           ))}
         </div>
       )}

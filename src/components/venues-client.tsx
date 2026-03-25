@@ -253,7 +253,7 @@ export default function VenuesClient({ venues, eventCounts }: Props) {
                     <button
                       onClick={() => toggleHide(venue.id)}
                       disabled={isToggling}
-                      className={`rounded-md p-1.5 transition-colors ${
+                      className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors ${
                         isHidden
                           ? "text-amber-500 hover:text-amber-600 hover:bg-amber-50"
                           : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
@@ -261,9 +261,9 @@ export default function VenuesClient({ venues, eventCounts }: Props) {
                       title={isHidden ? "Show this venue" : "Hide this venue"}
                     >
                       {isHidden ? (
-                        <EyeOff className="h-4 w-4" />
+                        <><EyeOff className="h-3.5 w-3.5" /><span>Show</span></>
                       ) : (
-                        <Eye className="h-4 w-4" />
+                        <><Eye className="h-3.5 w-3.5" /><span>Hide</span></>
                       )}
                     </button>
                   )}
@@ -318,7 +318,7 @@ export default function VenuesClient({ venues, eventCounts }: Props) {
                       <button
                         onClick={() => toggleHide(venue.id)}
                         disabled={isToggling}
-                        className={`rounded-md p-1.5 transition-colors ${
+                        className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors ${
                           isHidden
                             ? "text-amber-500 hover:text-amber-600 hover:bg-amber-50"
                             : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
@@ -326,9 +326,9 @@ export default function VenuesClient({ venues, eventCounts }: Props) {
                         title={isHidden ? "Show this venue" : "Hide this venue"}
                       >
                         {isHidden ? (
-                          <EyeOff className="h-4 w-4" />
+                          <><EyeOff className="h-3.5 w-3.5" /><span>Show</span></>
                         ) : (
-                          <Eye className="h-4 w-4" />
+                          <><Eye className="h-3.5 w-3.5" /><span>Hide</span></>
                         )}
                       </button>
                     )}
