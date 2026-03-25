@@ -43,16 +43,22 @@ export default function EventsClient({ events, interactionCounts }: Props) {
     const eventId = searchParams.get("event");
     if (!eventId) return;
     setHighlightedEventId(eventId);
-    // Wait for render then scroll
-    const timer = setTimeout(() => {
+
+    // Scroll helper — retry a few times as layout may shift
+    function scrollToEvent() {
       const el = document.getElementById(`event-${eventId}`);
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
       }
-    }, 500);
-    // Clear highlight after 4 seconds
-    const clearTimer = setTimeout(() => setHighlightedEventId(null), 4000);
-    return () => { clearTimeout(timer); clearTimeout(clearTimer); };
+    }
+
+    // Initial scroll after first render
+    const t1 = setTimeout(scrollToEvent, 600);
+    // Re-scroll after profile/data loads may shift layout
+    const t2 = setTimeout(scrollToEvent, 2000);
+    // Clear highlight after 8 seconds (longer so user can find it)
+    const clearTimer = setTimeout(() => setHighlightedEventId(null), 8000);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(clearTimer); };
   }, [searchParams]);
 
   // Load user's hidden events + hidden venues + profile ZIP on mount
@@ -75,6 +81,8 @@ export default function EventsClient({ events, interactionCounts }: Props) {
         if (data) setHiddenVenueIds(new Set(data.map((d) => d.venue_id)));
       });
     // Fetch user profile ZIP for proximity sorting
+    // BUT skip auto-sort if we're highlighting a shared event
+    const isSharedEvent = searchParams.get("event");
     supabase
       .from("profiles")
       .select("zip")
@@ -85,11 +93,13 @@ export default function EventsClient({ events, interactionCounts }: Props) {
           const coords = zipToCoords(data.zip);
           if (coords) {
             setUserCoords(coords);
-            setSortBy("for-you"); // Auto-default to For You
+            if (!isSharedEvent) {
+              setSortBy("for-you"); // Only auto-sort if not viewing a shared event
+            }
           }
         }
       });
-  }, [supabase, user]);
+  }, [supabase, user, searchParams]);
 
   const handleHide = useCallback((eventId: string) => {
     setHiddenIds((prev) => new Set(prev).add(eventId));
