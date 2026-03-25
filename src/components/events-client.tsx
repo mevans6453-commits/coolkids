@@ -36,6 +36,8 @@ export default function EventsClient({ events, interactionCounts }: Props) {
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [tipDismissed, setTipDismissed] = useState(false);
+  // Rotating tip: pick one random tip per visit
+  const [tipIndex] = useState(() => Math.floor(Math.random() * 4));
   const searchParams = useSearchParams();
 
   // Handle ?event=UUID param — scroll to and highlight a shared event
@@ -499,20 +501,30 @@ export default function EventsClient({ events, interactionCounts }: Props) {
         )}
       </div>
 
-      {/* Inline how-to tip — shows once, dismissable */}
-      {!tipDismissed && filtered.events.length > 20 && (
-        <div className="mt-4 flex items-center gap-3 rounded-lg border border-blue-100 bg-blue-50/50 px-4 py-3">
-          <Lightbulb className="h-5 w-5 text-blue-500 flex-shrink-0" />
-          <p className="text-sm text-blue-700 flex-1">
-            <strong>Tip:</strong> Seeing too many events from a venue? Go to the{" "}
+      {/* Rotating how-to tip — one random tip per visit, dismissable */}
+      {!tipDismissed && filtered.events.length > 10 && (() => {
+        const tips = [
+          <>Seeing too many events from a venue? Go to the{" "}
             <a href="/venues" className="underline font-medium hover:text-blue-900">Venues page</a>{" "}
-            and tap <strong>Hide</strong> to filter them out.
-          </p>
-          <button onClick={() => setTipDismissed(true)} className="rounded p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-100">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
+            and tap <strong>Hide</strong> to filter them out.</>,
+          <>Tap the <strong>⭐ star</strong> on events you like — they&apos;ll appear in{" "}
+            <a href="/my-events" className="underline font-medium hover:text-blue-900">My Events</a> so you can find them fast.</>,
+          <>Try the <strong>&quot;For You&quot;</strong> sort at the top — it prioritizes events near you and matching your kids&apos; ages.</>,
+          <>Check out <a href="/my-events" className="underline font-medium hover:text-blue-900">My Events</a> and switch to{" "}
+            <strong>calendar view</strong> to see all your saved events at a glance.</>,
+        ];
+        return (
+          <div className="mt-4 flex items-center gap-3 rounded-lg border border-blue-100 bg-blue-50/50 px-4 py-3">
+            <Lightbulb className="h-5 w-5 text-blue-500 flex-shrink-0" />
+            <p className="text-sm text-blue-700 flex-1">
+              <strong>Tip:</strong> {tips[tipIndex % tips.length]}
+            </p>
+            <button onClick={() => setTipDismissed(true)} className="rounded p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-100">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        );
+      })()}
 
       {filtered.events.length === 0 ? (
         <div className="mt-10 rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">

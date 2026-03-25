@@ -7,7 +7,7 @@ import { useAuth } from "./auth-provider";
 import {
   MapPin, Star, Hand, List, CalendarDays,
   ChevronLeft, ChevronRight, X, CalendarPlus,
-  Share2, Check, Smartphone,
+  Share2, Check, Smartphone, Lightbulb,
 } from "lucide-react";
 import { formatDateRange } from "@/lib/event-utils";
 import { shareEvent } from "@/lib/share-utils";
@@ -37,6 +37,7 @@ export default function MyEventsClient({ attending: initialAttending, starred: i
   const [attendingList, setAttendingList] = useState<Event[]>(initialAttending);
   const [starredList, setStarredList] = useState<Event[]>(initialStarred);
   const [removing, setRemoving] = useState<Set<string>>(new Set());
+  const [calTipDismissed, setCalTipDismissed] = useState(false);
 
   // Quick lookup sets
   const attendingIds = useMemo(() => new Set(attendingList.map((e) => e.id)), [attendingList]);
@@ -183,6 +184,21 @@ export default function MyEventsClient({ attending: initialAttending, starred: i
           </button>
         </div>
       </div>
+
+      {/* Calendar view tip */}
+      {!calTipDismissed && viewMode === "list" && totalEvents > 0 && (
+        <div className="mt-3 flex items-center gap-3 rounded-lg border border-blue-100 bg-blue-50/50 px-4 py-3">
+          <Lightbulb className="h-5 w-5 text-blue-500 flex-shrink-0" />
+          <p className="text-sm text-blue-700 flex-1">
+            <strong>Tip:</strong> Switch to{" "}
+            <button onClick={() => setViewMode("calendar")} className="underline font-medium hover:text-blue-900">calendar view</button>{" "}
+            to see all your starred and attending events at a glance.
+          </p>
+          <button onClick={() => setCalTipDismissed(true)} className="rounded p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-100">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {viewMode === "list" ? (
         <MyEventsList
