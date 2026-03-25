@@ -24,14 +24,6 @@ export default function DesktopNav() {
       <a href="/suggest" className="text-gray-600 hover:text-[var(--primary)]">
         Suggest
       </a>
-      <a href="/my-events" className="text-gray-600 hover:text-[var(--primary)]">
-        My Events
-      </a>
-      {isAdmin && (
-        <a href="/admin/scraping" className="text-orange-500 hover:text-orange-600">
-          Admin
-        </a>
-      )}
     </nav>
   );
 }

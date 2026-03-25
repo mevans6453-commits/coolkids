@@ -34,23 +34,24 @@ export default function AuthButton() {
 
   return (
     <div className="flex items-center gap-3">
+      {/* Desktop only: My Events + Admin + username */}
       <a
         href="/my-events"
-        className="text-sm text-gray-600 hover:text-[var(--primary)]"
+        className="hidden sm:inline text-sm text-gray-600 hover:text-[var(--primary)]"
       >
         My Events
       </a>
       {isAdmin && (
         <a
           href="/admin/scraping"
-          className="text-sm font-medium text-orange-500 hover:text-orange-600"
+          className="hidden sm:inline text-sm font-medium text-orange-500 hover:text-orange-600"
         >
           Admin
         </a>
       )}
       <a
         href="/profile"
-        className="text-sm text-gray-600 hover:text-[var(--primary)]"
+        className="hidden sm:inline text-sm text-gray-600 hover:text-[var(--primary)]"
       >
         {user.email?.split("@")[0]}
       </a>
