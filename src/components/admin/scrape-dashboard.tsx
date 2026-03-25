@@ -225,10 +225,47 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events, suggestion
     setDismissedSuggestions(prev => new Set(prev).add(id));
   }
 
+  async function approveVenueSuggestion(suggestion: VenueSuggestion) {
+    const supabase = createClient();
+    // Create the venue in the venues table
+    const { error } = await supabase.from("venues").insert({
+      name: suggestion.venue_name,
+      scrape_url: suggestion.venue_url || null,
+      is_active: true,
+    });
+    if (!error) {
+      // Mark as dismissed (approved)
+      await supabase.from("venue_suggestions").delete().eq("id", suggestion.id);
+      setDismissedSuggestions(prev => new Set(prev).add(suggestion.id));
+      router.refresh();
+    }
+  }
+
   async function dismissEventSuggestion(id: string) {
     const supabase = createClient();
     await supabase.from("event_suggestions").delete().eq("id", id);
     setDismissedSuggestions(prev => new Set(prev).add(id));
+  }
+
+  async function approveEventSuggestion(suggestion: EventSuggestion) {
+    const supabase = createClient();
+    // Create the event in the events table
+    const { error } = await supabase.from("events").insert({
+      name: suggestion.event_name,
+      start_date: suggestion.event_date || new Date().toISOString().split("T")[0],
+      time_text: suggestion.event_time || null,
+      cost: suggestion.cost || null,
+      description: suggestion.description || null,
+      source_url: suggestion.event_url || null,
+      status: "published",
+      event_type: "event",
+      // venue_id is nullable for user-submitted events
+    });
+    if (!error) {
+      await supabase.from("event_suggestions").delete().eq("id", suggestion.id);
+      setDismissedSuggestions(prev => new Set(prev).add(suggestion.id));
+      router.refresh();
+    }
   }
 
   const pendingVenueSuggestions = suggestions.filter(s => !dismissedSuggestions.has(s.id));
@@ -297,6 +334,12 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events, suggestion
                       </div>
                       <div className="flex gap-2 flex-shrink-0">
                         <button
+                          onClick={() => approveVenueSuggestion(s)}
+                          className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700"
+                        >
+                          ✓ Approve
+                        </button>
+                        <button
                           onClick={() => dismissSuggestion(s.id)}
                           className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100"
                         >
@@ -337,6 +380,12 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events, suggestion
                         </p>
                       </div>
                       <div className="flex gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => approveEventSuggestion(s)}
+                          className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700"
+                        >
+                          ✓ Approve
+                        </button>
                         <button
                           onClick={() => dismissEventSuggestion(s.id)}
                           className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100"
