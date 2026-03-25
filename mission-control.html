@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CoolKids — Mission Control</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #242836;
+    --border: #2e3345;
+    --text: #e4e6f0;
+    --text2: #8b8fa7;
+    --accent: #6c5ce7;
+    --accent2: #a29bfe;
+    --green: #00b894;
+    --green-bg: rgba(0,184,148,0.12);
+    --yellow: #fdcb6e;
+    --yellow-bg: rgba(253,203,110,0.12);
+    --red: #e17055;
+    --red-bg: rgba(225,112,85,0.12);
+    --blue: #74b9ff;
+    --blue-bg: rgba(116,185,255,0.12);
+    --pink: #fd79a8;
+    --pink-bg: rgba(253,121,168,0.12);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 {
+    font-size: 2.2rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent2), var(--pink), var(--yellow));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: .4rem;
+  }
+  header p { color: var(--text2); font-size: .95rem; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: center;
+  }
+  .stat-card .num { font-size: 1.8rem; font-weight: 800; }
+  .stat-card .label { font-size: .75rem; color: var(--text2); text-transform: uppercase; letter-spacing: .05em; }
+  .stat-card.green .num { color: var(--green); }
+  .stat-card.yellow .num { color: var(--yellow); }
+  .stat-card.blue .num { color: var(--blue); }
+  .stat-card.pink .num { color: var(--pink); }
+
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+  }
+  .section-header {
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-header:hover { background: var(--surface2); }
+  .section-header .icon { font-size: 1.3rem; }
+  .section-header h2 { font-size: 1rem; font-weight: 700; flex: 1; }
+  .section-header .badge {
+    font-size: .7rem;
+    font-weight: 600;
+    padding: .2rem .6rem;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  .badge.done { background: var(--green-bg); color: var(--green); }
+  .badge.inprogress { background: var(--yellow-bg); color: var(--yellow); }
+  .badge.todo { background: var(--red-bg); color: var(--red); }
+  .badge.idea { background: var(--blue-bg); color: var(--blue); }
+  .badge.priority { background: var(--pink-bg); color: var(--pink); }
+
+  .section-body { padding: .5rem 0; }
+  .section.collapsed .section-body { display: none; }
+
+  .item {
+    display: flex;
+    align-items: flex-start;
+    gap: .75rem;
+    padding: .6rem 1.25rem;
+    transition: background .15s;
+  }
+  .item:hover { background: var(--surface2); }
+  .item.checked .item-text { text-decoration: line-through; color: var(--text2); }
+  .item.checked .item-note { text-decoration: line-through; opacity: .5; }
+
+  .item input[type="checkbox"] {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-top: 2px;
+    position: relative;
+    transition: all .15s;
+  }
+  .item input[type="checkbox"]:checked {
+    background: var(--green);
+    border-color: var(--green);
+  }
+  .item input[type="checkbox"]:checked::after {
+    content: '✓';
+    position: absolute;
+    top: -1px;
+    left: 3px;
+    font-size: 14px;
+    color: white;
+    font-weight: 700;
+  }
+
+  .item-content { flex: 1; }
+  .item-text { font-size: .9rem; font-weight: 500; }
+  .item-note { font-size: .78rem; color: var(--text2); margin-top: .15rem; }
+
+  .sub-items { padding-left: 2rem; }
+  .sub-items .item { padding: .35rem 1.25rem; }
+  .sub-items .item-text { font-size: .85rem; font-weight: 400; }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: .3rem 1.25rem;
+  }
+
+  footer {
+    text-align: center;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    color: var(--text2);
+    font-size: .8rem;
+  }
+
+  @media (max-width: 640px) {
+    body { padding: 1rem; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    header h1 { font-size: 1.6rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🚀 CoolKids Mission Control</h1>
+  <p>Launch checklist &amp; growth roadmap — Last Updated: March 24, 2026</p>
+</header>
+
+<div class="stats">
+  <div class="stat-card green"><div class="num" id="stat-done">0</div><div class="label">Done</div></div>
+  <div class="stat-card yellow"><div class="num" id="stat-progress">0</div><div class="label">In Progress</div></div>
+  <div class="stat-card pink"><div class="num" id="stat-todo">0</div><div class="label">To Do</div></div>
+  <div class="stat-card blue"><div class="num" id="stat-pct">0%</div><div class="label">Complete</div></div>
+</div>
+
+<!-- ============ PHASE 1: DONE ============ -->
+<div class="section">
+  <div class="section-header" onclick="toggle(this)">
+    <span class="icon">✅</span>
+    <h2>Phase 1–4: Foundation (Complete)</h2>
+    <span class="badge done">Done</span>
+  </div>
+  <div class="section-body">
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">Next.js project + Supabase database</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">Magic link authentication (no passwords)</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">User profiles (ZIP, kids ages, interests)</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">Star + "I'm Going" buttons with counts</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">Events page with filters (date, cost, category, age)</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">List / grid / calendar views</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">My Events page (starred + attending)</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">"This Weekend" page with Happening Today</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">Add to Calendar (Google Calendar)</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">Hide / Report functionality</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">Share button (native share + clipboard)</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">Dad Joke of the Day</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">Suggest a Venue form</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">Mobile-first responsive design</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">Admin scraping dashboard</div></div></div>
+  </div>
+</div>
+
+<!-- ============ PHASE 5: SCRAPING ============ -->
+<div class="section">
+  <div class="section-header" onclick="toggle(this)">
+    <span class="icon">🔧</span>
+    <h2>Phase 5: Scraping & Data Quality</h2>
+    <span class="badge done">Done</span>
+  </div>
+  <div class="section-body">
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">7-strategy scraper cascade (jsonld → ical → rss → html → firecrawl → apify → apify-chromium)</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">Firecrawl integration for JS-rendered sites</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">Smart event validation (junk filters, date checks, not-for-kids detection)</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">318 published events across 5 cities</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">10 parent-friendly categories (hands-on-art, animals-nature, etc.)</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">Source URL backfill — all events have "More Info" links</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">Sequoyah Library (45 events from LibCal)</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">Regional expansion: Canton, Woodstock, Alpharetta, Roswell, Milton/Crabapple</div></div></div>
+    <div class="item"><input type="checkbox" data-key="cron-scraper"><div class="item-content"><div class="item-text">Automated scraping cron job</div><div class="item-note">Vercel Cron — nightly for free strategies, weekly for Firecrawl</div></div></div>
+    <div class="item"><input type="checkbox" data-key="stale-cleanup"><div class="item-content"><div class="item-text">Stale event cleanup cron</div><div class="item-note">Auto-unpublish events older than 7 days past their end date</div></div></div>
+    <div class="item"><input type="checkbox" data-key="manual-entry"><div class="item-content"><div class="item-text">Manual entry workflow for blocked venues</div><div class="item-note">~8 venues that block all scrapers — need admin "Add Event" form</div></div></div>
+  </div>
+</div>
+
+<!-- ============ LAUNCH ESSENTIALS ============ -->
+<div class="section">
+  <div class="section-header" onclick="toggle(this)">
+    <span class="icon">🚀</span>
+    <h2>Launch Essentials</h2>
+    <span class="badge priority">Priority</span>
+  </div>
+  <div class="section-body">
+    <div class="item"><input type="checkbox" data-key="friday-newsletter"><div class="item-content"><div class="item-text">Friday "This Weekend" Newsletter</div><div class="item-note">THE hook. Curated picks, dad joke, "families are going" section. Use Resend.com (free 3k/mo)</div></div></div>
+    <div class="item"><input type="checkbox" data-key="og-images"><div class="item-content"><div class="item-text">OG share images (social previews)</div><div class="item-note">Beautiful cards when links are shared on text/Facebook. Vercel OG generation</div></div></div>
+    <div class="item"><input type="checkbox" data-key="referral-links"><div class="item-content"><div class="item-text">Referral links on "I'm Going"</div><div class="item-note">?ref=userId tracking — every share becomes a growth moment</div></div></div>
+    <div class="item"><input type="checkbox" data-key="families-going"><div class="item-content"><div class="item-text">"X Families Are Going" display</div><div class="item-note">Social proof on event cards — drives FOMO and signups</div></div></div>
+    <div class="item"><input type="checkbox" data-key="custom-domain"><div class="item-content"><div class="item-text">Custom domain (coolkidsga.com)</div><div class="item-note">Currently on coolkids-three.vercel.app</div></div></div>
+    <div class="item"><input type="checkbox" data-key="seo-meta"><div class="item-content"><div class="item-text">SEO meta tags & structured data</div><div class="item-note">Title tags, descriptions, JSON-LD for events — rank for "things to do with kids Canton GA"</div></div></div>
+    <div class="item"><input type="checkbox" data-key="legal"><div class="item-content"><div class="item-text">Terms of Service & Privacy Policy pages</div><div class="item-note">Required before public launch</div></div></div>
+    <div class="item"><input type="checkbox" data-key="error-pages"><div class="item-content"><div class="item-text">Custom 404 & error pages</div><div class="item-note">Friendly error handling — not default Next.js errors</div></div></div>
+  </div>
+</div>
+
+<!-- ============ ENGAGEMENT & RETENTION ============ -->
+<div class="section">
+  <div class="section-header" onclick="toggle(this)">
+    <span class="icon">💡</span>
+    <h2>Engagement & Retention</h2>
+    <span class="badge idea">Growth</span>
+  </div>
+  <div class="section-body">
+    <div class="item"><input type="checkbox" data-key="age-recs"><div class="item-content"><div class="item-text">Age-matched recommendations</div><div class="item-note">Personalized picks based on kids' ages in the newsletter + site</div></div></div>
+    <div class="item"><input type="checkbox" data-key="post-event"><div class="item-content"><div class="item-text">"How was it?" post-event follow-up</div><div class="item-note">Monday email to "I'm Going" parents — one-tap 👍/👎 rating</div></div></div>
+    <div class="item"><input type="checkbox" data-key="saturday-push"><div class="item-content"><div class="item-text">Saturday morning "Happening Today" push</div><div class="item-note">8am notification/email catching the "what should we do?" moment</div></div></div>
+    <div class="item"><input type="checkbox" data-key="venue-partners"><div class="item-content"><div class="item-text">Venue partnerships</div><div class="item-note">Venues submit their own events + "CoolKids discount" codes</div></div></div>
+    <div class="item"><input type="checkbox" data-key="indoor-outdoor"><div class="item-content"><div class="item-text">Indoor/outdoor filter</div><div class="item-note">Rainy day? Show me indoor events only</div></div></div>
+    <div class="item"><input type="checkbox" data-key="pwa"><div class="item-content"><div class="item-text">PWA (Progressive Web App)</div><div class="item-note">Install to home screen, push notifications, offline access</div></div></div>
+  </div>
+</div>
+
+<!-- ============ VIRAL GROWTH ============ -->
+<div class="section">
+  <div class="section-header" onclick="toggle(this)">
+    <span class="icon">🔥</span>
+    <h2>Viral Growth Engine</h2>
+    <span class="badge idea">Future</span>
+  </div>
+  <div class="section-body">
+    <div class="item"><input type="checkbox" data-key="playdate-connector"><div class="item-content"><div class="item-text">Playdate Connector</div><div class="item-note">"3 families with kids your age are going" — connect parents at events</div></div></div>
+    <div class="item"><input type="checkbox" data-key="neighborhood-groups"><div class="item-content"><div class="item-text">Neighborhood groups</div><div class="item-note">ZIP-based micro-communities: "Canton Downtown Parents", "Woodstock Families"</div></div></div>
+    <div class="item"><input type="checkbox" data-key="summer-planner"><div class="item-content"><div class="item-text">"My Kids' Summer" planner</div><div class="item-note">Drag events into a personal summer plan — screenshots = free marketing</div></div></div>
+    <div class="item"><input type="checkbox" data-key="party-invites"><div class="item-content"><div class="item-text">Private Events & Party Invites</div><div class="item-note">The nuclear growth option — 1 birthday party = 15 new users. AI-written invite + branded share image</div></div></div>
+    <div class="divider"></div>
+    <div class="sub-items">
+      <div class="item"><input type="checkbox" data-key="party-form"><div class="item-content"><div class="item-text">Party creation form (kid name, age, theme, date, location)</div></div></div>
+      <div class="item"><input type="checkbox" data-key="party-themes"><div class="item-content"><div class="item-text">12 theme templates (Superhero, Dinosaur, Space, Unicorn, etc.)</div></div></div>
+      <div class="item"><input type="checkbox" data-key="party-image"><div class="item-content"><div class="item-text">AI-generated invite image + unique link</div></div></div>
+      <div class="item"><input type="checkbox" data-key="party-rsvp"><div class="item-content"><div class="item-text">RSVP flow (requires signup → now a CoolKids user)</div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ DATA & COVERAGE ============ -->
+<div class="section">
+  <div class="section-header" onclick="toggle(this)">
+    <span class="icon">📊</span>
+    <h2>Data Coverage & Quality</h2>
+    <span class="badge inprogress">Ongoing</span>
+  </div>
+  <div class="section-body">
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">Canton — 13 events from Explore Canton</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">Woodstock — 4 curated events</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">Alpharetta — 6 curated events</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">Roswell — 3 curated events</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">Milton/Crabapple — 8 curated events (new venue added)</div></div></div>
+    <div class="item checked"><input type="checkbox" checked disabled><div class="item-content"><div class="item-text">Library system — 45 events from Sequoyah LibCal</div></div></div>
+    <div class="item"><input type="checkbox" data-key="expand-woodstock"><div class="item-content"><div class="item-text">Expand Woodstock coverage (Elm Street Arts, Park at City Center)</div></div></div>
+    <div class="item"><input type="checkbox" data-key="expand-ball-ground"><div class="item-content"><div class="item-text">Add Ball Ground events (fireworks, Rock the Park)</div></div></div>
+    <div class="item"><input type="checkbox" data-key="expand-holly-springs"><div class="item-content"><div class="item-text">Add Holly Springs / Waleska coverage</div></div></div>
+    <div class="item"><input type="checkbox" data-key="must-add-venues"><div class="item-content"><div class="item-text">Re-activate must-add local venues</div><div class="item-note">Art Barn, Tanglewood Farm, Reeves House, Cherokee Aquatic Center</div></div></div>
+    <div class="item"><input type="checkbox" data-key="cherokee-library"><div class="item-content"><div class="item-text">Add Cherokee County Public Library</div><div class="item-note">Free storytimes 2x/week, kids clubs, summer programs — highest impact for local parents</div></div></div>
+  </div>
+</div>
+
+<!-- ============ NEWSLETTER DETAILS ============ -->
+<div class="section">
+  <div class="section-header" onclick="toggle(this)">
+    <span class="icon">📧</span>
+    <h2>Newsletter System (The Hook)</h2>
+    <span class="badge priority">Priority</span>
+  </div>
+  <div class="section-body">
+    <div class="item"><input type="checkbox" data-key="nl-service"><div class="item-content"><div class="item-text">Set up Resend.com email service</div><div class="item-note">Free for 3,000 emails/month — built for Next.js</div></div></div>
+    <div class="item"><input type="checkbox" data-key="nl-template"><div class="item-content"><div class="item-text">Design newsletter HTML template</div><div class="item-note">Beautiful, mobile-first email with CoolKids branding</div></div></div>
+    <div class="item"><input type="checkbox" data-key="nl-content"><div class="item-content"><div class="item-text">Auto-generate content from event data</div><div class="item-note">Top 5 weekend picks, most-attended, dad joke, coming soon</div></div></div>
+    <div class="item"><input type="checkbox" data-key="nl-cron"><div class="item-content"><div class="item-text">Friday noon cron job to send newsletter</div><div class="item-note">Vercel Cron → Resend API → all subscribers</div></div></div>
+    <div class="item"><input type="checkbox" data-key="nl-signup"><div class="item-content"><div class="item-text">Newsletter signup form / landing page</div><div class="item-note">The /subscribe page — "Get Canton's best family events every Friday"</div></div></div>
+    <div class="item"><input type="checkbox" data-key="nl-unsub"><div class="item-content"><div class="item-text">Unsubscribe link in every email</div><div class="item-note">CAN-SPAM compliance required</div></div></div>
+  </div>
+</div>
+
+<footer>
+  <p>Built with ❤️ for local families — CoolKids © 2026</p>
+  <p style="margin-top:.5rem; font-size:.7rem;">Checkbox state saves to your browser (localStorage)</p>
+</footer>
+
+<script>
+  // Save checkbox state to localStorage
+  const STORAGE_KEY = 'coolkids-mission-control';
+
+  function loadState() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    } catch { return {}; }
+  }
+
+  function saveState(state) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  // Initialize checkboxes
+  const state = loadState();
+  document.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => {
+    const key = cb.dataset.key;
+    if (state[key]) {
+      cb.checked = true;
+      cb.closest('.item').classList.add('checked');
+    }
+    cb.addEventListener('change', () => {
+      const s = loadState();
+      s[key] = cb.checked;
+      saveState(s);
+      cb.closest('.item').classList.toggle('checked', cb.checked);
+      updateStats();
+    });
+  });
+
+  // Toggle sections
+  function toggle(header) {
+    header.closest('.section').classList.toggle('collapsed');
+  }
+
+  // Update stats
+  function updateStats() {
+    const all = document.querySelectorAll('input[type="checkbox"]');
+    const done = document.querySelectorAll('input[type="checkbox"]:checked').length;
+    const total = all.length;
+    const todo = total - done;
+    const inProgress = document.querySelectorAll('.badge.inprogress').length;
+
+    document.getElementById('stat-done').textContent = done;
+    document.getElementById('stat-progress').textContent = inProgress;
+    document.getElementById('stat-todo').textContent = todo;
+    document.getElementById('stat-pct').textContent = Math.round((done / total) * 100) + '%';
+  }
+  updateStats();
+</script>
+</body>
+</html>

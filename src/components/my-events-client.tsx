@@ -7,8 +7,10 @@ import { useAuth } from "./auth-provider";
 import {
   MapPin, Star, Hand, List, CalendarDays,
   ChevronLeft, ChevronRight, X, CalendarPlus,
+  Share2, Check, Smartphone,
 } from "lucide-react";
 import { formatDateRange } from "@/lib/event-utils";
+import { shareEvent } from "@/lib/share-utils";
 import type { Event } from "@/lib/types";
 
 // -----------------------------------------------
@@ -328,6 +330,15 @@ function MiniEventRow({
 }) {
   const starRemoving = removing.has(`${event.id}-star`);
   const attendRemoving = removing.has(`${event.id}-attending`);
+  const [shareState, setShareState] = useState<"idle" | "copied">("idle");
+
+  async function handleShare() {
+    const result = await shareEvent(event);
+    if (result === "copied") {
+      setShareState("copied");
+      setTimeout(() => setShareState("idle"), 2000);
+    }
+  }
 
   return (
     <div
@@ -368,7 +379,7 @@ function MiniEventRow({
         </div>
       </div>
 
-      {/* Toggle buttons */}
+      {/* Action buttons */}
       <div className="flex flex-shrink-0 gap-1.5">
         <button
           onClick={() => onToggle(event.id, "star")}
@@ -395,6 +406,25 @@ function MiniEventRow({
         >
           <Hand className={`h-3.5 w-3.5 ${isAttending ? "fill-blue-500" : ""}`} />
           <span className="hidden sm:inline">{isAttending ? "Going" : "Go"}</span>
+        </button>
+        <button
+          onClick={handleShare}
+          title="Share this event"
+          className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors min-h-[44px] sm:min-h-0 ${
+            shareState === "copied"
+              ? "bg-green-100 text-green-700"
+              : "bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
+          }`}
+        >
+          {shareState === "copied" ? (
+            <Check className="h-3.5 w-3.5" />
+          ) : (
+            <>
+              <Share2 className="h-3.5 w-3.5 hidden sm:block" />
+              <Smartphone className="h-3.5 w-3.5 sm:hidden" />
+            </>
+          )}
+          <span className="hidden sm:inline">{shareState === "copied" ? "Copied!" : "Share"}</span>
         </button>
       </div>
     </div>
@@ -623,32 +653,13 @@ function MyEventsCalendar({ attending, starred, attendingIds, starredIds, removi
               <X className="h-4 w-4" />
             </button>
           </div>
-          <div className="mt-3 flex gap-2">
-            <button
-              onClick={() => onToggle(selectedEvent.id, "star")}
-              disabled={removing.has(`${selectedEvent.id}-star`)}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                starredIds.has(selectedEvent.id)
-                  ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
-                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-              }`}
-            >
-              <Star className={`h-3.5 w-3.5 ${starredIds.has(selectedEvent.id) ? "fill-amber-500" : ""}`} />
-              {starredIds.has(selectedEvent.id) ? "Starred" : "Star"}
-            </button>
-            <button
-              onClick={() => onToggle(selectedEvent.id, "attending")}
-              disabled={removing.has(`${selectedEvent.id}-attending`)}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                attendingIds.has(selectedEvent.id)
-                  ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
-                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-              }`}
-            >
-              <Hand className={`h-3.5 w-3.5 ${attendingIds.has(selectedEvent.id) ? "fill-blue-500" : ""}`} />
-              {attendingIds.has(selectedEvent.id) ? "Going" : "I'm Going"}
-            </button>
-          </div>
+          <CalendarShareRow
+            selectedEvent={selectedEvent}
+            starredIds={starredIds}
+            attendingIds={attendingIds}
+            removing={removing}
+            onToggle={onToggle}
+          />
         </div>
       )}
 
@@ -666,6 +677,81 @@ function MyEventsCalendar({ attending, starred, attendingIds, starredIds, removi
           Tap an event to edit
         </div>
       </div>
+    </div>
+  );
+}
+
+// -----------------------------------------------
+// Calendar Detail Panel Buttons (with share)
+// -----------------------------------------------
+
+function CalendarShareRow({
+  selectedEvent,
+  starredIds,
+  attendingIds,
+  removing,
+  onToggle,
+}: {
+  selectedEvent: Event;
+  starredIds: Set<string>;
+  attendingIds: Set<string>;
+  removing: Set<string>;
+  onToggle: (eventId: string, type: "star" | "attending") => void;
+}) {
+  const [shareState, setShareState] = useState<"idle" | "copied">("idle");
+
+  async function handleShare() {
+    const result = await shareEvent(selectedEvent);
+    if (result === "copied") {
+      setShareState("copied");
+      setTimeout(() => setShareState("idle"), 2000);
+    }
+  }
+
+  return (
+    <div className="mt-3 flex gap-2">
+      <button
+        onClick={() => onToggle(selectedEvent.id, "star")}
+        disabled={removing.has(`${selectedEvent.id}-star`)}
+        className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+          starredIds.has(selectedEvent.id)
+            ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
+            : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+        }`}
+      >
+        <Star className={`h-3.5 w-3.5 ${starredIds.has(selectedEvent.id) ? "fill-amber-500" : ""}`} />
+        {starredIds.has(selectedEvent.id) ? "Starred" : "Star"}
+      </button>
+      <button
+        onClick={() => onToggle(selectedEvent.id, "attending")}
+        disabled={removing.has(`${selectedEvent.id}-attending`)}
+        className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+          attendingIds.has(selectedEvent.id)
+            ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+            : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+        }`}
+      >
+        <Hand className={`h-3.5 w-3.5 ${attendingIds.has(selectedEvent.id) ? "fill-blue-500" : ""}`} />
+        {attendingIds.has(selectedEvent.id) ? "Going" : "I'm Going"}
+      </button>
+      <button
+        onClick={handleShare}
+        className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+          shareState === "copied"
+            ? "bg-green-100 text-green-700"
+            : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+        }`}
+      >
+        {shareState === "copied" ? (
+          <Check className="h-3.5 w-3.5" />
+        ) : (
+          <>
+            <Share2 className="h-3.5 w-3.5 hidden sm:block" />
+            <Smartphone className="h-3.5 w-3.5 sm:hidden" />
+          </>
+        )}
+        {shareState === "copied" ? "Copied!" : "Share"}
+      </button>
     </div>
   );
 }

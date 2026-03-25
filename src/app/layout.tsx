@@ -5,9 +5,24 @@ import MobileNav from "@/components/mobile-nav";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://coolkids-three.vercel.app"),
   title: "CoolKids - Family Events in Cherokee County & North Georgia",
   description:
     "Find the best family-friendly events near Canton, GA. Farms, museums, parks, festivals, and more — personalized for your kids.",
+  openGraph: {
+    title: "CoolKids - Family Events in Cherokee County & North Georgia",
+    description:
+      "300+ curated family events across Canton, Woodstock, Alpharetta, Roswell & Milton. Free, personalized for your kids.",
+    siteName: "CoolKids",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "CoolKids - Family Events Near You",
+    description:
+      "Find the best family-friendly events near Canton, GA. Farms, museums, parks, festivals & more.",
+  },
 };
 
 export default function RootLayout({
