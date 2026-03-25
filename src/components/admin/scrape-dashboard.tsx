@@ -48,11 +48,25 @@ type VenueSuggestion = {
   created_at: string;
 };
 
+type EventSuggestion = {
+  id: string;
+  event_name: string;
+  venue_name: string | null;
+  event_date: string | null;
+  event_time: string | null;
+  cost: string | null;
+  description: string | null;
+  event_url: string | null;
+  suggested_by_email: string;
+  created_at: string;
+};
+
 type Props = {
   venues: Venue[];
   scrapeRuns: ScrapeRun[];
   events: EventSummary[];
   suggestions: VenueSuggestion[];
+  eventSuggestions: EventSuggestion[];
   userCount: number;
 };
 
@@ -77,7 +91,7 @@ function statusBadge(status: string) {
 // Main Dashboard Component
 // -----------------------------------------------
 
-export default function ScrapeDashboard({ venues, scrapeRuns, events, suggestions, userCount }: Props) {
+export default function ScrapeDashboard({ venues, scrapeRuns, events, suggestions, eventSuggestions, userCount }: Props) {
   const router = useRouter();
   const [scrapingIds, setScrapingIds] = useState<Set<string>>(new Set());
   const [scrapingAll, setScrapingAll] = useState(false);
@@ -211,7 +225,15 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events, suggestion
     setDismissedSuggestions(prev => new Set(prev).add(id));
   }
 
-  const pendingSuggestions = suggestions.filter(s => !dismissedSuggestions.has(s.id));
+  async function dismissEventSuggestion(id: string) {
+    const supabase = createClient();
+    await supabase.from("event_suggestions").delete().eq("id", id);
+    setDismissedSuggestions(prev => new Set(prev).add(id));
+  }
+
+  const pendingVenueSuggestions = suggestions.filter(s => !dismissedSuggestions.has(s.id));
+  const pendingEventSuggestions = eventSuggestions.filter(s => !dismissedSuggestions.has(s.id));
+  const totalPending = pendingVenueSuggestions.length + pendingEventSuggestions.length;
   const activeVenueCount = venues.filter(v => v.is_active).length;
 
   return (
@@ -228,11 +250,11 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events, suggestion
           <div className="text-xs text-gray-500 mt-1">Active Venues</div>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-4 text-center relative">
-          <div className="text-3xl font-bold text-orange-500">{pendingSuggestions.length}</div>
+          <div className="text-3xl font-bold text-orange-500">{totalPending}</div>
           <div className="text-xs text-gray-500 mt-1">Pending Suggestions</div>
-          {pendingSuggestions.length > 0 && (
+          {totalPending > 0 && (
             <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-orange-500 text-[10px] font-bold text-white">
-              {pendingSuggestions.length}
+              {totalPending}
             </span>
           )}
         </div>
@@ -242,42 +264,91 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events, suggestion
         </div>
       </section>
 
-      {/* ━━━ Pending Venue Suggestions ━━━ */}
-      {pendingSuggestions.length > 0 && (
+      {/* ━━━ Pending Suggestions (Venues + Events) ━━━ */}
+      {totalPending > 0 && (
         <section>
           <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             📋 Pending Approval
             <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-bold text-orange-600">
-              {pendingSuggestions.length}
+              {totalPending}
             </span>
           </h2>
-          <div className="mt-3 space-y-2">
-            {pendingSuggestions.map(s => (
-              <div key={s.id} className="rounded-lg border border-orange-200 bg-orange-50/50 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-gray-900">{s.venue_name}</span>
-                    {s.venue_url && (
-                      <a href={s.venue_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700">
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
-                    )}
-                  </div>
-                  {s.notes && <p className="text-sm text-gray-600 mt-0.5">{s.notes}</p>}
-                  <p className="text-xs text-gray-400 mt-1">
-                    Suggested by {s.suggested_by_email} · {new Date(s.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                  </p>
-                </div>
-                <div className="flex gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => dismissSuggestion(s.id)}
-                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100"
-                  >
-                    Dismiss
-                  </button>
+          <div className="mt-3 space-y-4">
+            {/* Venue suggestions */}
+            {pendingVenueSuggestions.length > 0 && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 mb-2">🏛 Venues</h3>
+                <div className="space-y-2">
+                  {pendingVenueSuggestions.map(s => (
+                    <div key={s.id} className="rounded-lg border border-blue-200 bg-blue-50/50 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-gray-900">{s.venue_name}</span>
+                          {s.venue_url && (
+                            <a href={s.venue_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700">
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                          )}
+                        </div>
+                        {s.notes && <p className="text-sm text-gray-600 mt-0.5">{s.notes}</p>}
+                        <p className="text-xs text-gray-400 mt-1">
+                          by {s.suggested_by_email} · {new Date(s.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </p>
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => dismissSuggestion(s.id)}
+                          className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100"
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
+            )}
+
+            {/* Event suggestions */}
+            {pendingEventSuggestions.length > 0 && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 mb-2">🎉 Events</h3>
+                <div className="space-y-2">
+                  {pendingEventSuggestions.map(s => (
+                    <div key={s.id} className="rounded-lg border border-orange-200 bg-orange-50/50 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-gray-900">{s.event_name}</span>
+                          {s.event_url && (
+                            <a href={s.event_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700">
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-sm text-gray-600">
+                          {s.venue_name && <span>📍 {s.venue_name}</span>}
+                          {s.event_date && <span>📅 {new Date(s.event_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>}
+                          {s.event_time && <span>🕐 {s.event_time}</span>}
+                          {s.cost && <span>💰 {s.cost}</span>}
+                        </div>
+                        {s.description && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{s.description}</p>}
+                        <p className="text-xs text-gray-400 mt-1">
+                          by {s.suggested_by_email} · {new Date(s.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </p>
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => dismissEventSuggestion(s.id)}
+                          className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100"
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </section>
       )}

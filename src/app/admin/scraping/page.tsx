@@ -29,6 +29,12 @@ export default async function AdminScrapingPage() {
     .select("*")
     .order("created_at", { ascending: false });
 
+  // Fetch pending event suggestions
+  const { data: eventSuggestions } = await supabase
+    .from("event_suggestions")
+    .select("*")
+    .order("created_at", { ascending: false });
+
   // Fetch user count from profiles
   const { count: userCount } = await supabase
     .from("profiles")
@@ -45,6 +51,7 @@ export default async function AdminScrapingPage() {
         scrapeRuns={scrapeRuns ?? []}
         events={events ?? []}
         suggestions={suggestions ?? []}
+        eventSuggestions={eventSuggestions ?? []}
         userCount={userCount ?? 0}
       />
     </div>

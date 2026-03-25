@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ChevronDown, X, LayoutGrid, List, CalendarDays } from "lucide-react";
+import { ChevronDown, X, LayoutGrid, List } from "lucide-react";
 import { CATEGORIES, CATEGORY_LABELS, type AgeFilter } from "@/lib/types";
 
 export type SortOption = "date" | "for-you" | "venue" | "trending" | "recent";
@@ -201,17 +201,10 @@ export default function EventFilters(props: Props) {
             </button>
             <button
               onClick={() => onViewModeChange("grid")}
-              className={`p-1.5 ${viewMode === "grid" ? "bg-gray-100 text-gray-700" : "text-gray-400 hover:text-gray-600"}`}
+              className={`rounded-r-lg p-1.5 ${viewMode === "grid" ? "bg-gray-100 text-gray-700" : "text-gray-400 hover:text-gray-600"}`}
               title="Grid view"
             >
               <LayoutGrid className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => onViewModeChange("calendar")}
-              className={`rounded-r-lg p-1.5 ${viewMode === "calendar" ? "bg-gray-100 text-gray-700" : "text-gray-400 hover:text-gray-600"}`}
-              title="Calendar view"
-            >
-              <CalendarDays className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -243,17 +236,10 @@ export default function EventFilters(props: Props) {
             </button>
             <button
               onClick={() => onViewModeChange("grid")}
-              className={`p-1.5 ${viewMode === "grid" ? "bg-gray-100 text-gray-700" : "text-gray-400 hover:text-gray-600"}`}
+              className={`rounded-r-lg p-1.5 ${viewMode === "grid" ? "bg-gray-100 text-gray-700" : "text-gray-400 hover:text-gray-600"}`}
               title="Grid view"
             >
               <LayoutGrid className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => onViewModeChange("calendar")}
-              className={`rounded-r-lg p-1.5 ${viewMode === "calendar" ? "bg-gray-100 text-gray-700" : "text-gray-400 hover:text-gray-600"}`}
-              title="Calendar view"
-            >
-              <CalendarDays className="h-4 w-4" />
             </button>
           </div>
         </div>
