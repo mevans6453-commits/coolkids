@@ -152,13 +152,16 @@ export function getProximityTier(
   if (expectedAttendance && expectedAttendance >= 5000) {
     return "worth-the-trip";
   }
-  if (distanceMiles <= 25) return "near";        // ~30 min drive
-  if (distanceMiles <= 50) return "short-drive";  // ~1 hour drive
-  return "worth-the-trip";                        // 1.5+ hours
+  // Tighter thresholds — North GA has mountain roads where crow-fly
+  // distances underestimate driving time (e.g., Blue Ridge is 44mi
+  // crow-fly but 1hr 20min driving).
+  if (distanceMiles <= 15) return "near";            // ~20 min drive
+  if (distanceMiles <= 35) return "short-drive";     // ~20-45 min drive
+  return "worth-the-trip";                           // 45+ min drive
 }
 
 export const TIER_LABELS: Record<ProximityTier, { emoji: string; title: string; subtitle: string }> = {
-  near: { emoji: "📍", title: "Near You", subtitle: "Within 30 minutes" },
-  "short-drive": { emoji: "🚗", title: "A Short Drive", subtitle: "30 min – 1 hour away" },
-  "worth-the-trip": { emoji: "🎪", title: "Worth the Trip", subtitle: "Day trip or big event" },
+  near: { emoji: "📍", title: "Near You", subtitle: "Under 20 minutes" },
+  "short-drive": { emoji: "🚗", title: "A Short Drive", subtitle: "20–45 minutes away" },
+  "worth-the-trip": { emoji: "🎪", title: "Worth the Trip", subtitle: "45+ minutes or big event" },
 };
