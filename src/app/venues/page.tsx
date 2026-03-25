@@ -3,7 +3,7 @@ import type { Venue } from "@/lib/types";
 import { MapPin } from "lucide-react";
 import VenuesClient from "@/components/venues-client";
 
-// Venues page — shows all tracked venues in a compact table layout
+// Venues page — shows all tracked venues in a card layout
 export const revalidate = 300; // Refresh data every 5 minutes
 
 export default async function VenuesPage() {
@@ -14,16 +14,22 @@ export default async function VenuesPage() {
     .eq("is_active", true)
     .order("name", { ascending: true });
 
-  // Count upcoming events per venue
+  // Fetch upcoming events with full details for venue expansion
   const today = new Date().toISOString().split("T")[0];
-  const { data: eventCounts } = await supabase
+  const { data: events } = await supabase
     .from("events")
-    .select("venue_id")
-    .gte("start_date", today);
+    .select("id, name, venue_id, start_date, end_date, time_text, cost, event_type, description")
+    .gte("start_date", today)
+    .eq("status", "published")
+    .order("start_date", { ascending: true });
 
+  // Group events by venue
+  const eventsByVenue: Record<string, typeof events> = {};
   const venueEventCounts: Record<string, number> = {};
-  eventCounts?.forEach((e) => {
+  events?.forEach((e) => {
     if (e.venue_id) {
+      if (!eventsByVenue[e.venue_id]) eventsByVenue[e.venue_id] = [];
+      eventsByVenue[e.venue_id]!.push(e);
       venueEventCounts[e.venue_id] = (venueEventCounts[e.venue_id] || 0) + 1;
     }
   });
@@ -57,7 +63,11 @@ export default async function VenuesPage() {
       )}
 
       {venues && venues.length > 0 && (
-        <VenuesClient venues={venues as Venue[]} eventCounts={venueEventCounts} />
+        <VenuesClient
+          venues={venues as Venue[]}
+          eventCounts={venueEventCounts}
+          eventsByVenue={eventsByVenue as Record<string, Array<{ id: string; name: string; venue_id: string; start_date: string; end_date: string | null; time_text: string | null; cost: string | null; event_type: string | null; description: string | null }>>}
+        />
       )}
     </div>
   );
