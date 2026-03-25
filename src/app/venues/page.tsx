@@ -20,7 +20,6 @@ export default async function VenuesPage() {
     .from("events")
     .select("id, name, venue_id, start_date, end_date, time_text, cost, event_type, description")
     .gte("start_date", today)
-    .or("event_type.eq.event,event_type.is.null")
     .order("start_date", { ascending: true });
 
   // Group events by venue
