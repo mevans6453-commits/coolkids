@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Play, RefreshCw, ChevronDown, ChevronUp, Check, Trash2, RotateCcw, Link } from "lucide-react";
+import { Play, RefreshCw, ChevronDown, ChevronUp, Check, Trash2, RotateCcw, Link, Search, X, ExternalLink } from "lucide-react";
 
 // -----------------------------------------------
 // Types
@@ -39,10 +39,21 @@ type EventSummary = {
   age_range_max: number | null;
 };
 
+type VenueSuggestion = {
+  id: string;
+  venue_name: string;
+  venue_url: string | null;
+  suggested_by_email: string;
+  notes: string | null;
+  created_at: string;
+};
+
 type Props = {
   venues: Venue[];
   scrapeRuns: ScrapeRun[];
   events: EventSummary[];
+  suggestions: VenueSuggestion[];
+  userCount: number;
 };
 
 // -----------------------------------------------
@@ -66,13 +77,15 @@ function statusBadge(status: string) {
 // Main Dashboard Component
 // -----------------------------------------------
 
-export default function ScrapeDashboard({ venues, scrapeRuns, events }: Props) {
+export default function ScrapeDashboard({ venues, scrapeRuns, events, suggestions, userCount }: Props) {
   const router = useRouter();
   const [scrapingIds, setScrapingIds] = useState<Set<string>>(new Set());
   const [scrapingAll, setScrapingAll] = useState(false);
   const [expandedVenue, setExpandedVenue] = useState<string | null>(null);
   const [sortColumn, setSortColumn] = useState<"name" | "events" | "status">("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
 
   // Compute latest run per venue
   const latestRunByVenue = useMemo(() => {
@@ -105,9 +118,29 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events }: Props) {
     return Object.entries(stats).sort((a, b) => b[1].events - a[1].events);
   }, [venues, eventsByVenue]);
 
-  // Sort venues based on selected column
+  // Needs attention: venues with 0 events or recent errors
+  const needsAttention = useMemo(() => {
+    const items: { type: "zero-events" | "error"; venue: Venue; detail: string }[] = [];
+    for (const v of venues.filter(v => v.is_active)) {
+      const evts = (eventsByVenue.get(v.id) ?? []).filter(e => e.event_type !== "hours");
+      const run = latestRunByVenue.get(v.id);
+      if (run?.status === "error") {
+        items.push({ type: "error", venue: v, detail: run.error_message?.slice(0, 80) || "Unknown error" });
+      } else if (evts.length === 0) {
+        items.push({ type: "zero-events", venue: v, detail: v.preferred_strategy || "no strategy" });
+      }
+    }
+    return items;
+  }, [venues, eventsByVenue, latestRunByVenue]);
+
+  // Filter + sort venues
   const sortedVenues = useMemo(() => {
-    return [...venues].sort((a, b) => {
+    let filtered = venues.filter(v => v.is_active);
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(v => v.name.toLowerCase().includes(q));
+    }
+    return filtered.sort((a, b) => {
       const aEvents = (eventsByVenue.get(a.id) ?? []).filter(e => e.event_type !== 'hours').length;
       const bEvents = (eventsByVenue.get(b.id) ?? []).filter(e => e.event_type !== 'hours').length;
       const aRun = latestRunByVenue.get(a.id);
@@ -126,7 +159,7 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events }: Props) {
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [venues, eventsByVenue, latestRunByVenue, sortColumn, sortDir]);
+  }, [venues, eventsByVenue, latestRunByVenue, sortColumn, sortDir, searchQuery]);
 
   function handleSort(col: "name" | "events" | "status") {
     if (sortColumn === col) {
@@ -172,40 +205,146 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events }: Props) {
     router.refresh();
   }
 
+  async function dismissSuggestion(id: string) {
+    const supabase = createClient();
+    await supabase.from("venue_suggestions").delete().eq("id", id);
+    setDismissedSuggestions(prev => new Set(prev).add(id));
+  }
+
+  const pendingSuggestions = suggestions.filter(s => !dismissedSuggestions.has(s.id));
+  const activeVenueCount = venues.filter(v => v.is_active).length;
+
   return (
     <div className="mt-8 space-y-8">
-      {/* Strategy Scoreboard */}
-      <section>
-        <h2 className="text-lg font-semibold text-gray-900">Strategy Performance</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {strategyStats.map(([name, stats]) => (
-            <div key={name} className="rounded-lg border border-gray-200 bg-white p-4 text-center">
-              <div className="text-sm font-medium text-gray-500">{name}</div>
-              <div className="mt-1 text-2xl font-bold text-gray-900">{stats.venues}</div>
-              <div className="text-xs text-gray-400">{stats.events} events</div>
-            </div>
-          ))}
+
+      {/* ━━━ Quick Stats Bar ━━━ */}
+      <section className="grid gap-3 grid-cols-2 sm:grid-cols-4">
+        <div className="rounded-xl border border-gray-200 bg-white p-4 text-center">
+          <div className="text-3xl font-bold text-indigo-600">{events.length}</div>
+          <div className="text-xs text-gray-500 mt-1">Published Events</div>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-4 text-center">
+          <div className="text-3xl font-bold text-emerald-600">{activeVenueCount}</div>
+          <div className="text-xs text-gray-500 mt-1">Active Venues</div>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-4 text-center relative">
+          <div className="text-3xl font-bold text-orange-500">{pendingSuggestions.length}</div>
+          <div className="text-xs text-gray-500 mt-1">Pending Suggestions</div>
+          {pendingSuggestions.length > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-orange-500 text-[10px] font-bold text-white">
+              {pendingSuggestions.length}
+            </span>
+          )}
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-4 text-center">
+          <div className="text-3xl font-bold text-blue-600">{userCount}</div>
+          <div className="text-xs text-gray-500 mt-1">Registered Users</div>
         </div>
       </section>
 
-      {/* Run All Button */}
-      <div className="flex items-center gap-4">
+      {/* ━━━ Pending Venue Suggestions ━━━ */}
+      {pendingSuggestions.length > 0 && (
+        <section>
+          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            📋 Pending Approval
+            <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-bold text-orange-600">
+              {pendingSuggestions.length}
+            </span>
+          </h2>
+          <div className="mt-3 space-y-2">
+            {pendingSuggestions.map(s => (
+              <div key={s.id} className="rounded-lg border border-orange-200 bg-orange-50/50 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-gray-900">{s.venue_name}</span>
+                    {s.venue_url && (
+                      <a href={s.venue_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                  </div>
+                  {s.notes && <p className="text-sm text-gray-600 mt-0.5">{s.notes}</p>}
+                  <p className="text-xs text-gray-400 mt-1">
+                    Suggested by {s.suggested_by_email} · {new Date(s.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  </p>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => dismissSuggestion(s.id)}
+                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ━━━ Needs Attention ━━━ */}
+      {needsAttention.length > 0 && (
+        <section>
+          <h2 className="text-lg font-semibold text-gray-900">🔔 Needs Attention</h2>
+          <div className="mt-3 space-y-1">
+            {needsAttention.slice(0, 10).map(item => (
+              <div key={item.venue.id} className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-2.5">
+                <span className={`flex-shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+                  item.type === "error" ? "border-red-200 bg-red-50 text-red-600" : "border-amber-200 bg-amber-50 text-amber-600"
+                }`}>
+                  {item.type === "error" ? "Error" : "0 events"}
+                </span>
+                <span className="font-medium text-sm text-gray-900">{item.venue.name}</span>
+                <span className="text-xs text-gray-400 truncate flex-1">{item.detail}</span>
+                <button
+                  onClick={() => runScrape(item.venue.id)}
+                  disabled={scrapingIds.has(item.venue.id)}
+                  className="flex-shrink-0 rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+                >
+                  {scrapingIds.has(item.venue.id) ? <RefreshCw className="inline h-3 w-3 animate-spin" /> : "Scrape"}
+                </button>
+              </div>
+            ))}
+            {needsAttention.length > 10 && (
+              <p className="text-xs text-gray-400 pl-4">+ {needsAttention.length - 10} more venues need attention</p>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ━━━ Search + Run All ━━━ */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search venues..."
+            className="w-full rounded-lg border border-gray-200 bg-white pl-10 pr-8 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[var(--primary)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
         <button
           onClick={() => runScrape()}
           disabled={scrapingAll}
-          className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--primary-light)] disabled:opacity-50"
+          className="flex items-center justify-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--primary-light)] disabled:opacity-50"
         >
           {scrapingAll ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-          {scrapingAll ? "Scraping All..." : "Run Scrape (All Venues)"}
+          {scrapingAll ? "Scraping All..." : "Run Scrape (All)"}
         </button>
-        <span className="text-sm text-gray-500">
-          {venues.filter(v => v.is_active).length} active venues · {events.length} events
-        </span>
       </div>
 
-      {/* Active Venue Scoreboard Table */}
+      {/* ━━━ Active Venues Table ━━━ */}
       <section>
-        <h2 className="text-lg font-semibold text-gray-900">Active Venues</h2>
+        <h2 className="text-lg font-semibold text-gray-900">
+          Active Venues
+          {searchQuery && <span className="text-sm font-normal text-gray-400 ml-2">({sortedVenues.length} matching)</span>}
+        </h2>
         <div className="mt-3 overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left text-xs font-medium text-gray-500">
@@ -285,6 +424,20 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events }: Props) {
           </div>
         </section>
       )}
+
+      {/* ━━━ Strategy Scoreboard (moved to bottom) ━━━ */}
+      <section>
+        <h2 className="text-lg font-semibold text-gray-400">Strategy Performance</h2>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {strategyStats.map(([name, stats]) => (
+            <div key={name} className="rounded-lg border border-gray-200 bg-white p-4 text-center">
+              <div className="text-sm font-medium text-gray-500">{name}</div>
+              <div className="mt-1 text-2xl font-bold text-gray-900">{stats.venues}</div>
+              <div className="text-xs text-gray-400">{stats.events} events</div>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

@@ -23,16 +23,29 @@ export default async function AdminScrapingPage() {
     .select("id, venue_id, name, event_type, age_range_min, age_range_max")
     .eq("status", "published");
 
+  // Fetch pending venue suggestions
+  const { data: suggestions } = await supabase
+    .from("venue_suggestions")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  // Fetch user count from profiles
+  const { count: userCount } = await supabase
+    .from("profiles")
+    .select("id", { count: "exact", head: true });
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
-      <h1 className="text-3xl font-bold text-gray-900">Scrape Monitoring</h1>
+      <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
       <p className="mt-2 text-gray-600">
-        Admin dashboard — venue scraping status, strategy performance, and event management.
+        Venue management, user suggestions, and scraping operations.
       </p>
       <ScrapeDashboard
         venues={venues ?? []}
         scrapeRuns={scrapeRuns ?? []}
         events={events ?? []}
+        suggestions={suggestions ?? []}
+        userCount={userCount ?? 0}
       />
     </div>
   );
