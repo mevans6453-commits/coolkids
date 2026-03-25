@@ -19,6 +19,7 @@ export default async function Image() {
           justifyContent: "center",
           padding: "60px",
           position: "relative",
+          overflow: "hidden",
         }}
       >
         {/* Decorative circles */}
@@ -50,56 +51,57 @@ export default async function Image() {
         {/* Logo */}
         <div
           style={{
-            fontSize: "72px",
+            fontSize: "80px",
             fontWeight: 800,
             color: "white",
-            marginBottom: "16px",
+            marginBottom: "12px",
             display: "flex",
             alignItems: "center",
-            gap: "16px",
+            gap: "0",
+            letterSpacing: "-2px",
           }}
         >
-          <span style={{ fontSize: "64px" }}>🎉</span>
+          <span style={{ color: "#fbbf24", marginRight: "8px" }}>*</span>
           CoolKids
         </div>
 
         {/* Tagline */}
         <div
           style={{
-            fontSize: "28px",
+            fontSize: "30px",
             color: "rgba(255, 255, 255, 0.85)",
             textAlign: "center",
-            maxWidth: "700px",
+            maxWidth: "750px",
             lineHeight: 1.4,
             display: "flex",
           }}
         >
-          Family Events in Cherokee County & North Georgia
+          Family Events in Cherokee County and North Georgia
         </div>
 
         {/* Stats bar */}
         <div
           style={{
             display: "flex",
-            gap: "40px",
-            marginTop: "40px",
-            padding: "20px 40px",
+            gap: "48px",
+            marginTop: "44px",
+            padding: "24px 48px",
             borderRadius: "16px",
             background: "rgba(255, 255, 255, 0.1)",
             border: "1px solid rgba(255, 255, 255, 0.15)",
           }}
         >
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <span style={{ fontSize: "36px", fontWeight: 800, color: "#fbbf24" }}>300+</span>
-            <span style={{ fontSize: "14px", color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Events</span>
+            <span style={{ fontSize: "40px", fontWeight: 800, color: "#fbbf24" }}>300+</span>
+            <span style={{ fontSize: "14px", color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Events</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <span style={{ fontSize: "36px", fontWeight: 800, color: "#34d399" }}>80+</span>
-            <span style={{ fontSize: "14px", color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Venues</span>
+            <span style={{ fontSize: "40px", fontWeight: 800, color: "#34d399" }}>80+</span>
+            <span style={{ fontSize: "14px", color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Venues</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <span style={{ fontSize: "36px", fontWeight: 800, color: "#f472b6" }}>5</span>
-            <span style={{ fontSize: "14px", color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Cities</span>
+            <span style={{ fontSize: "40px", fontWeight: 800, color: "#f472b6" }}>5</span>
+            <span style={{ fontSize: "14px", color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Cities</span>
           </div>
         </div>
 
@@ -107,13 +109,13 @@ export default async function Image() {
         <div
           style={{
             position: "absolute",
-            bottom: "24px",
+            bottom: "28px",
             fontSize: "16px",
-            color: "rgba(255, 255, 255, 0.5)",
+            color: "rgba(255, 255, 255, 0.45)",
             display: "flex",
           }}
         >
-          Built with ❤️ for local families • coolkidsga.com
+          Built for local families | coolkids-three.vercel.app
         </div>
       </div>
     ),

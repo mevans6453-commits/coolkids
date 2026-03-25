@@ -489,6 +489,21 @@ export default function EventsClient({ events, interactionCounts }: Props) {
         )}
       </div>
 
+      {/* Inline how-to tip — shows once, dismissable */}
+      {!tipDismissed && filtered.events.length > 20 && (
+        <div className="mt-4 flex items-center gap-3 rounded-lg border border-blue-100 bg-blue-50/50 px-4 py-3">
+          <Lightbulb className="h-5 w-5 text-blue-500 flex-shrink-0" />
+          <p className="text-sm text-blue-700 flex-1">
+            <strong>Tip:</strong> Seeing too many events from a venue? Go to the{" "}
+            <a href="/venues" className="underline font-medium hover:text-blue-900">Venues page</a>{" "}
+            and tap <strong>Hide</strong> to filter them out.
+          </p>
+          <button onClick={() => setTipDismissed(true)} className="rounded p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-100">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {filtered.events.length === 0 ? (
         <div className="mt-10 rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
           <p className="text-gray-500">No events match your filters.</p>
@@ -548,38 +563,22 @@ export default function EventsClient({ events, interactionCounts }: Props) {
         renderGrouped(viewMode === "grid" ? "grid" : "list")
       ) : (
         <div className={viewMode === "grid" ? "mt-6 grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "mt-6 space-y-2"}>
-          {filtered.events.map((event, idx) => (
-            <>
-              {/* Inline how-to tip after the 20th event */}
-              {idx === 20 && !tipDismissed && viewMode !== "grid" && (
-                <div key="how-to-tip" className="flex items-center gap-3 rounded-lg border border-blue-100 bg-blue-50/50 px-4 py-3">
-                  <Lightbulb className="h-5 w-5 text-blue-500 flex-shrink-0" />
-                  <p className="text-sm text-blue-700 flex-1">
-                    <strong>Tip:</strong> Seeing too many events from a venue? Go to the{" "}
-                    <a href="/venues" className="underline font-medium hover:text-blue-900">Venues page</a>{" "}
-                    and tap <strong>Hide</strong> to filter them out.
-                  </p>
-                  <button onClick={() => setTipDismissed(true)} className="rounded p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-100">
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              )}
-              <div
-                key={event.id}
-                id={`event-${event.id}`}
-                className={highlightedEventId === event.id
-                  ? "rounded-xl ring-2 ring-blue-500 ring-offset-2 animate-pulse transition-all duration-500"
-                  : ""}
-              >
-                <EventCard
-                  event={event}
-                  starCount={interactionCounts[event.id]?.stars ?? 0}
-                  attendingCount={interactionCounts[event.id]?.attending ?? 0}
-                  onHide={handleHide}
-                  view={viewMode}
-                />
-              </div>
-            </>
+          {filtered.events.map((event) => (
+            <div
+              key={event.id}
+              id={`event-${event.id}`}
+              className={highlightedEventId === event.id
+                ? "rounded-xl ring-2 ring-blue-500 ring-offset-2 animate-pulse transition-all duration-500"
+                : ""}
+            >
+              <EventCard
+                event={event}
+                starCount={interactionCounts[event.id]?.stars ?? 0}
+                attendingCount={interactionCounts[event.id]?.attending ?? 0}
+                onHide={handleHide}
+                view={viewMode}
+              />
+            </div>
           ))}
         </div>
       )}
