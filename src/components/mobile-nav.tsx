@@ -4,12 +4,9 @@ import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { useAuth } from "./auth-provider";
 
-const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "";
-
 export default function MobileNav() {
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
-  const isAdmin = user?.email === ADMIN_EMAIL;
 
   return (
     <div className="sm:hidden">
@@ -24,15 +21,6 @@ export default function MobileNav() {
       {open && (
         <div className="absolute left-0 right-0 top-16 z-50 border-b border-[var(--border)] bg-white shadow-lg">
           <nav className="flex flex-col px-4 py-3">
-            {isAdmin && (
-            <a
-              href="/this-weekend"
-              onClick={() => setOpen(false)}
-              className="rounded-lg px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50"
-            >
-              This Weekend
-            </a>
-            )}
             <a
               href="/events"
               onClick={() => setOpen(false)}
@@ -54,20 +42,13 @@ export default function MobileNav() {
             >
               Suggest a Venue
             </a>
-            <a
-              href="/my-events"
-              onClick={() => setOpen(false)}
-              className="rounded-lg px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50"
-            >
-              My Events
-            </a>
-            {isAdmin && (
+            {user && (
               <a
-                href="/admin/scraping"
+                href="/my-events"
                 onClick={() => setOpen(false)}
-                className="rounded-lg px-4 py-3 text-base font-medium text-orange-500 hover:bg-orange-50"
+                className="rounded-lg px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50"
               >
-                Admin
+                My Events
               </a>
             )}
           </nav>

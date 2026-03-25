@@ -41,14 +41,6 @@ export default function AuthButton() {
       >
         My Events
       </a>
-      {isAdmin && (
-        <a
-          href="/admin/scraping"
-          className="hidden sm:inline text-sm font-medium text-orange-500 hover:text-orange-600"
-        >
-          Admin
-        </a>
-      )}
       <a
         href="/profile"
         className="hidden sm:inline text-sm text-gray-600 hover:text-[var(--primary)]"

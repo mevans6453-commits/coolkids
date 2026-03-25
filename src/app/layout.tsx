@@ -3,6 +3,7 @@ import AuthProvider from "@/components/auth-provider";
 import AuthButton from "@/components/auth-button";
 import DesktopNav from "@/components/desktop-nav";
 import MobileNav from "@/components/mobile-nav";
+import AdminMenu from "@/components/admin-menu";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -45,10 +46,12 @@ export default function RootLayout({
             <div className="hidden sm:flex items-center gap-4">
               <DesktopNav />
               <AuthButton />
+              <AdminMenu />
             </div>
             {/* Mobile: auth + hamburger */}
             <div className="flex items-center gap-2 sm:hidden">
               <AuthButton />
+              <AdminMenu />
               <MobileNav />
             </div>
           </div>
