@@ -24,6 +24,7 @@ export default function MobileNav() {
       {open && (
         <div className="absolute left-0 right-0 top-16 z-50 border-b border-[var(--border)] bg-white shadow-lg">
           <nav className="flex flex-col px-4 py-3">
+            {isAdmin && (
             <a
               href="/this-weekend"
               onClick={() => setOpen(false)}
@@ -31,6 +32,7 @@ export default function MobileNav() {
             >
               This Weekend
             </a>
+            )}
             <a
               href="/events"
               onClick={() => setOpen(false)}

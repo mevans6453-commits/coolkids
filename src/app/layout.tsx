@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import AuthProvider from "@/components/auth-provider";
 import AuthButton from "@/components/auth-button";
+import DesktopNav from "@/components/desktop-nav";
 import MobileNav from "@/components/mobile-nav";
 import "./globals.css";
 
@@ -36,27 +37,22 @@ export default function RootLayout({
         <AuthProvider>
         {/* Navigation header */}
         <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-white/95 backdrop-blur">
-          <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+          {/* Top row: logo + auth/mobile menu */}
+          <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
             <a href="/" className="text-2xl font-bold text-[var(--primary)]">
               CoolKids
             </a>
-            {/* Desktop nav */}
-            <nav className="hidden items-center gap-6 text-sm font-medium sm:flex">
-              <a href="/this-weekend" className="text-gray-600 hover:text-[var(--primary)]">
-                This Weekend
-              </a>
-              <a href="/events" className="text-gray-600 hover:text-[var(--primary)]">
-                Events
-              </a>
-              <a href="/venues" className="text-gray-600 hover:text-[var(--primary)]">
-                Venues
-              </a>
+            <div className="flex items-center gap-2">
               <AuthButton />
-            </nav>
-            {/* Mobile nav */}
-            <div className="flex items-center gap-2 sm:hidden">
-              <AuthButton />
-              <MobileNav />
+              <div className="sm:hidden">
+                <MobileNav />
+              </div>
+            </div>
+          </div>
+          {/* Second row: desktop nav links */}
+          <div className="hidden sm:block border-t border-gray-100">
+            <div className="mx-auto max-w-6xl px-4 flex items-center h-10">
+              <DesktopNav />
             </div>
           </div>
         </header>
