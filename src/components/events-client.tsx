@@ -39,8 +39,13 @@ export default function EventsClient({ events, interactionCounts }: Props) {
   // Pagination — Load More button shows 50 at a time on the flat list view
   const PAGE_SIZE = 50;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  // Rotating tip: pick one random tip per visit
-  const [tipIndex] = useState(() => Math.floor(Math.random() * 4));
+  // Rotating tip: pick one random tip per visit.
+  // Start at 0 on the server so SSR matches the first client render,
+  // then randomize after mount to avoid a hydration mismatch.
+  const [tipIndex, setTipIndex] = useState(0);
+  useEffect(() => {
+    setTipIndex(Math.floor(Math.random() * 4));
+  }, []);
   const searchParams = useSearchParams();
 
   // Handle ?event=UUID param — scroll to and highlight a shared event
