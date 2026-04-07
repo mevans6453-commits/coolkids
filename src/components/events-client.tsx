@@ -36,6 +36,9 @@ export default function EventsClient({ events, interactionCounts }: Props) {
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [tipDismissed, setTipDismissed] = useState(false);
+  // Pagination — Load More button shows 50 at a time on the flat list view
+  const PAGE_SIZE = 50;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   // Rotating tip: pick one random tip per visit
   const [tipIndex] = useState(() => Math.floor(Math.random() * 4));
   const searchParams = useSearchParams();
@@ -249,6 +252,11 @@ export default function EventsClient({ events, interactionCounts }: Props) {
 
     return { events: result, totalAfterHidden };
   }, [events, hiddenIds, hiddenVenueIds, searchQuery, timeFilter, costFilter, selectedCategories, ageFilter, sortBy, interactionCounts]);
+
+  // Reset pagination whenever filters/search change so users see the top of the new result set
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [searchQuery, timeFilter, costFilter, selectedCategories, ageFilter, sortBy, groupBy, viewMode]);
 
   // Group events by category or venue
   const grouped = useMemo(() => {
@@ -584,25 +592,40 @@ export default function EventsClient({ events, interactionCounts }: Props) {
       ) : groupBy !== "none" ? (
         renderGrouped(viewMode === "grid" ? "grid" : "list")
       ) : (
-        <div className={viewMode === "grid" ? "mt-6 grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "mt-6 space-y-2"}>
-          {filtered.events.map((event) => (
-            <div
-              key={event.id}
-              id={`event-${event.id}`}
-              className={highlightedEventId === event.id
-                ? "rounded-xl ring-2 ring-blue-500 ring-offset-2 animate-pulse transition-all duration-500"
-                : ""}
-            >
-              <EventCard
-                event={event}
-                starCount={interactionCounts[event.id]?.stars ?? 0}
-                attendingCount={interactionCounts[event.id]?.attending ?? 0}
-                onHide={handleHide}
-                view={viewMode}
-              />
+        <>
+          <div className={viewMode === "grid" ? "mt-6 grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "mt-6 space-y-2"}>
+            {filtered.events.slice(0, visibleCount).map((event) => (
+              <div
+                key={event.id}
+                id={`event-${event.id}`}
+                className={highlightedEventId === event.id
+                  ? "rounded-xl ring-2 ring-blue-500 ring-offset-2 animate-pulse transition-all duration-500"
+                  : ""}
+              >
+                <EventCard
+                  event={event}
+                  starCount={interactionCounts[event.id]?.stars ?? 0}
+                  attendingCount={interactionCounts[event.id]?.attending ?? 0}
+                  onHide={handleHide}
+                  view={viewMode}
+                />
+              </div>
+            ))}
+          </div>
+          {visibleCount < filtered.events.length && (
+            <div className="mt-6 flex flex-col items-center gap-2">
+              <p className="text-xs text-gray-500">
+                Showing {visibleCount} of {filtered.events.length} events
+              </p>
+              <button
+                onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                className="rounded-full border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+              >
+                Load More
+              </button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </>
   );

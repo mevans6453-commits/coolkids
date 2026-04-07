@@ -8,12 +8,22 @@ export const revalidate = 300; // Refresh every 5 minutes
 
 // Homepage — introduces CoolKids and highlights key features
 export default async function HomePage() {
-  // Fetch all dad jokes and pick today's
-  const { data: jokes } = await supabase.from("dad_jokes").select("*");
+  // Fetch all dad jokes and pick today's. Wrapped in try/catch so a database
+  // outage degrades gracefully (page still renders without the joke) instead
+  // of crashing the whole homepage.
+  let jokes: DadJokeType[] | null = null;
+  try {
+    const { data, error } = await supabase.from("dad_jokes").select("*");
+    if (!error) jokes = data as DadJokeType[] | null;
+  } catch (err) {
+    console.error("[HomePage] Failed to fetch dad jokes:", err);
+  }
   const now = new Date();
-  const dayOfYear = Math.floor(
-    (now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400000
-  );
+  // Day-of-year (1-366). Using Jan 1 as the anchor; previously used Jan 0
+  // (Dec 31 of prior year) which produced an off-by-one index.
+  const startOfYear = new Date(now.getFullYear(), 0, 1);
+  const dayOfYear =
+    Math.floor((now.getTime() - startOfYear.getTime()) / 86400000) + 1;
   const todaysJoke =
     jokes && jokes.length > 0
       ? (jokes[dayOfYear % jokes.length] as DadJokeType)

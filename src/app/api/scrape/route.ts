@@ -14,12 +14,27 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { runScrapeAll } from "@/scrapers/scrape-engine";
+import { createClient } from "@/lib/supabase/server";
 
 // Allow up to 60 seconds for scraping (requires Vercel Pro for >10s)
 export const maxDuration = 60;
 
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "mevans6453@gmail.com";
+
 export async function POST(request: NextRequest) {
   try {
+    // Admin-only: must be logged in AND email must match ADMIN_EMAIL
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user || user.email !== ADMIN_EMAIL) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const venueId = searchParams.get("venue");
     const forceDetect = searchParams.get("detect") === "true";

@@ -11,12 +11,31 @@ export default async function MyEventsPage() {
     redirect("/subscribe");
   }
 
-  // Fetch user's interactions with event + venue data
-  const { data: interactions } = await supabase
-    .from("user_event_interactions")
-    .select("interaction_type, attended_date, event:events(*, venue:venues(*))")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
+  // Fetch user's interactions with event + venue data. Wrapped in try/catch
+  // so a database outage shows an empty state instead of crashing the page.
+  let interactions: Array<{
+    interaction_type: string;
+    attended_date: string | null;
+    event: unknown;
+  }> | null = null;
+  let loadError: string | null = null;
+  try {
+    const { data, error } = await supabase
+      .from("user_event_interactions")
+      .select(
+        "interaction_type, attended_date, event:events(*, venue:venues(*))"
+      )
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+    if (error) {
+      loadError = error.message;
+    } else {
+      interactions = data as unknown as typeof interactions;
+    }
+  } catch (err) {
+    console.error("[MyEvents] Failed to fetch interactions:", err);
+    loadError = "Could not connect to the database. Please try again.";
+  }
 
   const starred: Event[] = [];
   const attending: Event[] = [];
@@ -38,6 +57,13 @@ export default async function MyEventsPage() {
     <div className="mx-auto max-w-6xl px-4 py-10">
       <h1 className="text-3xl font-bold text-gray-900">My Events</h1>
       <p className="mt-2 text-gray-600">Events you&apos;ve starred or are attending.</p>
+
+      {loadError && (
+        <div className="mt-6 rounded-lg bg-red-50 p-4 text-red-700">
+          <p className="font-medium">Could not load your events</p>
+          <p className="mt-1 text-sm">{loadError}</p>
+        </div>
+      )}
 
       <MyEventsClient attending={attending} starred={starred} attendedDates={attendedDates} />
     </div>
