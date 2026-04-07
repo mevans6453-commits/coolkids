@@ -13,11 +13,12 @@ export default async function MyEventsPage() {
 
   // Fetch user's interactions with event + venue data. Wrapped in try/catch
   // so a database outage shows an empty state instead of crashing the page.
-  let interactions: Array<{
+  type InteractionRow = {
     interaction_type: string;
     attended_date: string | null;
     event: unknown;
-  }> | null = null;
+  };
+  let interactions: InteractionRow[] | null = null;
   let loadError: string | null = null;
   try {
     const { data, error } = await supabase
@@ -30,7 +31,7 @@ export default async function MyEventsPage() {
     if (error) {
       loadError = error.message;
     } else {
-      interactions = data as unknown as typeof interactions;
+      interactions = (data ?? []) as unknown as InteractionRow[];
     }
   } catch (err) {
     console.error("[MyEvents] Failed to fetch interactions:", err);
