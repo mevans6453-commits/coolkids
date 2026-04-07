@@ -13,7 +13,8 @@ CoolKids is a local family events aggregator and community platform for parents 
 - Ask before making major structural changes.
 
 ## Live Site
-- **URL:** https://coolkids-three.vercel.app
+- **URL:** https://cool-kids.io (also reachable at https://coolkids-three.vercel.app)
+- **Domain registrar:** Porkbun (cool-kids.io)
 - **GitHub:** https://github.com/mevans6453-commits/coolkids
 - **Database:** Supabase (project: kgeqtdodpaceugzrxhsh)
 - **Hosting:** Vercel (auto-deploys from main branch on GitHub)
