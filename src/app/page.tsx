@@ -72,13 +72,13 @@ export default async function HomePage() {
           <FeatureCard
             icon={<MapPin className="h-8 w-8 text-emerald-600" />}
             title="Local Venues"
-            description="We track 20+ family-friendly venues across Cherokee County and North Georgia."
+            description="We track 60+ family-friendly venues across Cherokee County and North Georgia."
             accentBg="bg-emerald-50"
           />
           <FeatureCard
             icon={<Calendar className="h-8 w-8 text-blue-600" />}
             title="Auto-Updated Events"
-            description="Events are automatically scraped from venue websites every month."
+            description="Events are automatically scraped from venue websites and updated daily."
             accentBg="bg-blue-50"
           />
           <FeatureCard
@@ -150,10 +150,10 @@ function FeatureCard({
 
 // Sample featured venues shown on the homepage
 const FEATURED_VENUES = [
-  { name: "Cagle's Family Farm", location: "Canton, GA", category: "Farm" },
-  { name: "Tellus Science Museum", location: "Cartersville, GA", category: "Museum" },
-  { name: "Gibbs Gardens", location: "Ball Ground, GA", category: "Garden" },
-  { name: "North Georgia Zoo", location: "Cleveland, GA", category: "Zoo" },
-  { name: "Booth Western Art Museum", location: "Cartersville, GA", category: "Museum" },
-  { name: "Amicalola Falls State Park", location: "Dawsonville, GA", category: "Park" },
+  { name: "Cagle's Family Farm", location: "Canton, GA", category: "animals-nature" },
+  { name: "Tellus Science Museum", location: "Cartersville, GA", category: "science-stem" },
+  { name: "Gibbs Gardens", location: "Ball Ground, GA", category: "outdoor-adventure" },
+  { name: "North Georgia Zoo", location: "Cleveland, GA", category: "animals-nature" },
+  { name: "Booth Western Art Museum", location: "Cartersville, GA", category: "science-stem" },
+  { name: "Amicalola Falls State Park", location: "Dawsonville, GA", category: "outdoor-adventure" },
 ];

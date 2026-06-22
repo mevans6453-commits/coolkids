@@ -29,6 +29,13 @@ export default function MobileNav() {
               Events
             </a>
             <a
+              href="/this-weekend"
+              onClick={() => setOpen(false)}
+              className="rounded-lg px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50"
+            >
+              This Weekend
+            </a>
+            <a
               href="/venues"
               onClick={() => setOpen(false)}
               className="rounded-lg px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50"
@@ -40,7 +47,7 @@ export default function MobileNav() {
               onClick={() => setOpen(false)}
               className="rounded-lg px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50"
             >
-              Suggest a Venue
+              Suggest
             </a>
             {user && (
               <a

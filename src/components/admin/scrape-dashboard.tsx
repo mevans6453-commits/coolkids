@@ -229,10 +229,14 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events, suggestion
 
   async function approveVenueSuggestion(suggestion: VenueSuggestion) {
     const supabase = createClient();
-    // Create the venue in the venues table
+    // Create the venue in the venues table with proper defaults
     const { error } = await supabase.from("venues").insert({
       name: suggestion.venue_name,
+      website: suggestion.venue_url || null,
       scrape_url: suggestion.venue_url || null,
+      city: "Canton",
+      county: "Cherokee",
+      state: "GA",
       is_active: true,
     });
     if (!error) {

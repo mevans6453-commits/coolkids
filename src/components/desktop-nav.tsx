@@ -10,6 +10,9 @@ export default function DesktopNav() {
       <a href="/events" className="text-gray-600 hover:text-[var(--primary)]">
         Events
       </a>
+      <a href="/this-weekend" className="text-gray-600 hover:text-[var(--primary)]">
+        This Weekend
+      </a>
       <a href="/venues" className="text-gray-600 hover:text-[var(--primary)]">
         Venues
       </a>

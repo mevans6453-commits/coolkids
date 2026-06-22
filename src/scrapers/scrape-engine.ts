@@ -458,8 +458,8 @@ async function saveEvents(venueId: string, events: ScrapedEvent[]): Promise<numb
       .limit(1);
 
     // Check 2: Same venue + same date but different name (fuzzy dedup)
-    // Allow up to 3 events per venue per day (e.g. morning storytime + evening concert)
-    // but skip if the venue already has 3+ events on this date (likely parser noise)
+    // Allow up to 5 events per venue per day (e.g. library programs, museum activities)
+    // but skip if the venue already has 5+ events on this date (likely parser noise)
     let dateMatchId: string | null = null;
     if (!existing || existing.length === 0) {
       const { data: dateMatch } = await getSupabase()
@@ -469,8 +469,8 @@ async function saveEvents(venueId: string, events: ScrapedEvent[]): Promise<numb
         .eq("start_date", event.start_date)
         .eq("status", "published");
       
-      if (dateMatch && dateMatch.length >= 3) {
-        // 3+ events on the same date is suspicious — likely parser noise
+      if (dateMatch && dateMatch.length >= 5) {
+        // 5+ events on the same date is suspicious — likely parser noise
         console.log(`  [DB] Skipped duplicate: "${event.name}" — venue already has ${dateMatch.length} events on ${event.start_date}`);
         continue;
       }

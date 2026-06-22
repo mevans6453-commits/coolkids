@@ -19,6 +19,8 @@ export default async function VenuesPage() {
   const { data: events } = await supabase
     .from("events")
     .select("id, name, venue_id, start_date, end_date, time_text, cost, event_type, description")
+    .eq("status", "published")
+    .not("event_type", "eq", "not_for_kids")
     .gte("start_date", today)
     .order("start_date", { ascending: true });
 

@@ -51,7 +51,7 @@ export default async function ThisWeekendPage() {
   // Dad joke
   const { data: jokes } = await supabase.from("dad_jokes").select("*");
   const dayOfYear = Math.floor(
-    (now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400000
+    (now.getTime() - new Date(now.getFullYear(), 0, 1).getTime()) / 86400000
   );
   const todaysJoke =
     jokes && jokes.length > 0

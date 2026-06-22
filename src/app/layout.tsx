@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "CoolKids - Family Events in Cherokee County & North Georgia",
     description:
-      "300+ curated family events across Canton, Woodstock, Alpharetta, Roswell & Milton. Free, personalized for your kids.",
+      "Hundreds of curated family events across Canton, Woodstock, Alpharetta, Roswell & Milton. Free, personalized for your kids.",
     siteName: "CoolKids",
     locale: "en_US",
     type: "website",
