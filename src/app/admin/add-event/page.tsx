@@ -1,9 +1,11 @@
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 import AddEventForm from "@/components/admin/add-event-form";
 
 export const revalidate = 0;
 
 export default async function AdminAddEventPage() {
+  const supabase = await createClient();
+
   const { data: venues } = await supabase
     .from("venues")
     .select("id, name, city")

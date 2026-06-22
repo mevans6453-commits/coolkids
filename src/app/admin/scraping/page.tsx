@@ -1,9 +1,11 @@
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 import ScrapeDashboard from "@/components/admin/scrape-dashboard";
 
 export const revalidate = 0; // Always fresh data for admin
 
 export default async function AdminScrapingPage() {
+  const supabase = await createClient();
+
   // Fetch all venues
   const { data: venues } = await supabase
     .from("venues")
@@ -17,11 +19,13 @@ export default async function AdminScrapingPage() {
     .order("run_date", { ascending: false })
     .limit(500);
 
-  // Fetch event summary data for breakdown
+  // Fetch only upcoming events (no point showing past events in admin)
+  const today = new Date().toISOString().split("T")[0];
   const { data: events } = await supabase
     .from("events")
     .select("id, venue_id, name, event_type, age_range_min, age_range_max")
-    .eq("status", "published");
+    .eq("status", "published")
+    .gte("start_date", today);
 
   // Fetch pending venue suggestions
   const { data: suggestions } = await supabase
@@ -35,10 +39,8 @@ export default async function AdminScrapingPage() {
     .select("*")
     .order("created_at", { ascending: false });
 
-  // Fetch user count from profiles
-  const { count: userCount } = await supabase
-    .from("profiles")
-    .select("id", { count: "exact", head: true });
+  // Fetch user count via RPC function (bypasses RLS)
+  const { data: userCount } = await supabase.rpc("get_user_count");
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
