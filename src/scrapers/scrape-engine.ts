@@ -143,7 +143,10 @@ async function scrapeVenue(
 
       const startMs = Date.now();
       try {
-        const result = await withTimeout(preferred.scrape(config), 30000, `${preferred.name} strategy`);
+        const result = await withRetry(
+          () => withTimeout(preferred.scrape(config), 30000, `${preferred.name} strategy`),
+          preferred.name
+        );
         const durationMs = Date.now() - startMs;
 
         if (result.events.length > 0) {
@@ -206,7 +209,10 @@ async function scrapeVenue(
       const timeout = strategy.name === "apify-chromium" ? 120000 : 30000;
 
       try {
-        const result = await withTimeout(strategy.scrape(config), timeout, `${strategy.name} strategy`);
+        const result = await withRetry(
+          () => withTimeout(strategy.scrape(config), timeout, `${strategy.name} strategy`),
+          strategy.name
+        );
         const durationMs = Date.now() - startMs;
         const eventsFound = result.events.length;
 
@@ -324,6 +330,32 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): P
   return Promise.race([promise, timeout]);
 }
 
+/**
+ * Retry a strategy scrape once on transient failure (network errors, timeouts).
+ * Waits 3 seconds before retrying.
+ */
+async function withRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const isTransient =
+      msg.includes("timed out") ||
+      msg.includes("ECONNRESET") ||
+      msg.includes("ENOTFOUND") ||
+      msg.includes("fetch failed") ||
+      msg.includes("502") ||
+      msg.includes("503");
+
+    if (isTransient) {
+      console.log(`[Engine]   Retrying ${label} after transient error: ${msg}`);
+      await new Promise((r) => setTimeout(r, 3000));
+      return await fn();
+    }
+    throw err;
+  }
+}
+
 // -----------------------------------------------
 // Build venue configs from hardcoded + database
 // -----------------------------------------------
@@ -426,8 +458,8 @@ async function saveEvents(venueId: string, events: ScrapedEvent[]): Promise<numb
       .limit(1);
 
     // Check 2: Same venue + same date but different name (fuzzy dedup)
-    // This catches cases like "Thunderbirds Headline..." and "Wings Over North Georgia Air Show"
-    // which are the same event with different names extracted from different parts of the page
+    // Allow up to 3 events per venue per day (e.g. morning storytime + evening concert)
+    // but skip if the venue already has 3+ events on this date (likely parser noise)
     let dateMatchId: string | null = null;
     if (!existing || existing.length === 0) {
       const { data: dateMatch } = await getSupabase()
@@ -435,12 +467,11 @@ async function saveEvents(venueId: string, events: ScrapedEvent[]): Promise<numb
         .select("id, name")
         .eq("venue_id", venueId)
         .eq("start_date", event.start_date)
-        .eq("status", "published")
-        .limit(1);
+        .eq("status", "published");
       
-      if (dateMatch && dateMatch.length > 0) {
-        // Same venue, same date — this is likely a duplicate with a different name
-        console.log(`  [DB] Skipped duplicate: "${event.name}" — venue already has "${dateMatch[0].name}" on ${event.start_date}`);
+      if (dateMatch && dateMatch.length >= 3) {
+        // 3+ events on the same date is suspicious — likely parser noise
+        console.log(`  [DB] Skipped duplicate: "${event.name}" — venue already has ${dateMatch.length} events on ${event.start_date}`);
         continue;
       }
     }

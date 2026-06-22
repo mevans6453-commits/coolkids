@@ -19,7 +19,7 @@ import {
   stripHtml,
 } from "../parse-utils";
 
-const USER_AGENT = "CoolKidsBot/1.0 (family events aggregator)";
+const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
 
 export const htmlStrategy: ScrapeStrategy = {
   name: "html",
