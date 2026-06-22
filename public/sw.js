@@ -4,7 +4,7 @@
 // and faster repeat loads.
 // ===========================================
 
-const CACHE_NAME = "coolkids-v1";
+const CACHE_NAME = "coolkids-v2";
 
 // Core assets to pre-cache on install
 const PRECACHE_ASSETS = [
