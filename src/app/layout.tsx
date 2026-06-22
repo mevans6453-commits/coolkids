@@ -1,16 +1,28 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import AuthProvider from "@/components/auth-provider";
 import AuthButton from "@/components/auth-button";
 import DesktopNav from "@/components/desktop-nav";
 import MobileNav from "@/components/mobile-nav";
 import AdminMenu from "@/components/admin-menu";
+import ServiceWorkerRegister from "@/components/sw-register";
+import PWAInstallPrompt from "@/components/pwa-install-prompt";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  themeColor: "#2563eb",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://coolkids-three.vercel.app"),
   title: "CoolKids - Family Events in Cherokee County & North Georgia",
   description:
     "Find the best family-friendly events near Canton, GA. Farms, museums, parks, festivals, and more — personalized for your kids.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "CoolKids",
+  },
   openGraph: {
     title: "CoolKids - Family Events in Cherokee County & North Georgia",
     description:
@@ -25,6 +37,9 @@ export const metadata: Metadata = {
     description:
       "Find the best family-friendly events near Canton, GA. Farms, museums, parks, festivals & more.",
   },
+  icons: {
+    apple: "/icons/icon-192x192.png",
+  },
 };
 
 export default function RootLayout({
@@ -35,6 +50,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-white antialiased">
+        <ServiceWorkerRegister />
         <AuthProvider>
         {/* Navigation header */}
         <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-white/95 backdrop-blur">
@@ -133,6 +149,7 @@ export default function RootLayout({
             </div>
           </div>
         </footer>
+        <PWAInstallPrompt />
         </AuthProvider>
       </body>
     </html>
