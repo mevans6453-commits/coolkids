@@ -199,6 +199,8 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events, suggestion
     try {
       const url = venueId ? `/api/scrape?venue=${venueId}` : "/api/scrape";
       await fetch(url, { method: "POST" });
+      // Auto-revalidate public pages so new events appear immediately
+      await fetch("/api/revalidate", { method: "POST" }).catch(() => {});
       router.refresh();
     } finally {
       if (venueId) {
@@ -277,15 +279,15 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events, suggestion
     <div className="mt-8 space-y-8">
 
       {/* ━━━ Quick Stats Bar ━━━ */}
-      <section className="grid gap-3 grid-cols-2 sm:grid-cols-4">
-        <div className="rounded-xl border border-gray-200 bg-white p-4 text-center">
+      <section className="grid gap-3 grid-cols-2 sm:grid-cols-5">
+        <a href="/events" target="_blank" className="rounded-xl border border-gray-200 bg-white p-4 text-center hover:border-indigo-300 hover:shadow-sm transition-all group">
           <div className="text-3xl font-bold text-indigo-600">{events.length}</div>
-          <div className="text-xs text-gray-500 mt-1">Published Events</div>
-        </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-4 text-center">
+          <div className="text-xs text-gray-500 mt-1 group-hover:text-indigo-600">Upcoming Events ↗</div>
+        </a>
+        <a href="/venues" target="_blank" className="rounded-xl border border-gray-200 bg-white p-4 text-center hover:border-emerald-300 hover:shadow-sm transition-all group">
           <div className="text-3xl font-bold text-emerald-600">{activeVenueCount}</div>
-          <div className="text-xs text-gray-500 mt-1">Active Venues</div>
-        </div>
+          <div className="text-xs text-gray-500 mt-1 group-hover:text-emerald-600">Active Venues ↗</div>
+        </a>
         <div className="rounded-xl border border-gray-200 bg-white p-4 text-center relative">
           <div className="text-3xl font-bold text-orange-500">{totalPending}</div>
           <div className="text-xs text-gray-500 mt-1">Pending Suggestions</div>
@@ -299,6 +301,10 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events, suggestion
           <div className="text-3xl font-bold text-blue-600">{userCount}</div>
           <div className="text-xs text-gray-500 mt-1">Registered Users</div>
         </div>
+        <a href="/this-weekend" target="_blank" className="rounded-xl border border-gray-200 bg-white p-4 text-center hover:border-purple-300 hover:shadow-sm transition-all group">
+          <div className="text-3xl font-bold text-purple-600">🎉</div>
+          <div className="text-xs text-gray-500 mt-1 group-hover:text-purple-600">This Weekend ↗</div>
+        </a>
       </section>
 
       {/* ━━━ Pending Suggestions (Venues + Events) ━━━ */}
