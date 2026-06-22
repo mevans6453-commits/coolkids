@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { INTEREST_CATEGORIES, type Profile } from "@/lib/types";
+import { INTEREST_CATEGORIES, CATEGORY_LABELS, type Profile } from "@/lib/types";
 
 const AGE_OPTIONS = Array.from({ length: 18 }, (_, i) => i);
 
@@ -125,7 +125,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
-              {cat}
+              {CATEGORY_LABELS[cat] || cat}
             </button>
           ))}
         </div>

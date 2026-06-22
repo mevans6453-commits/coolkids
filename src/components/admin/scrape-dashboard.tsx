@@ -100,6 +100,7 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events, suggestion
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [searchQuery, setSearchQuery] = useState("");
   const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
+  const [eventVenueSelections, setEventVenueSelections] = useState<Record<string, string>>({});
 
   // Compute latest run per venue
   const latestRunByVenue = useMemo(() => {
@@ -255,9 +256,23 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events, suggestion
 
   async function approveEventSuggestion(suggestion: EventSuggestion) {
     const supabase = createClient();
+    // Try to match venue by name, or use the selected venue
+    const selectedVenueId = eventVenueSelections[suggestion.id] || null;
+    let venueId = selectedVenueId;
+    
+    // Auto-match: if user suggested a venue name but didn't select from dropdown
+    if (!venueId && suggestion.venue_name) {
+      const match = venues.find(v => 
+        v.name.toLowerCase().includes(suggestion.venue_name!.toLowerCase()) ||
+        suggestion.venue_name!.toLowerCase().includes(v.name.toLowerCase())
+      );
+      if (match) venueId = match.id;
+    }
+
     // Create the event in the events table
     const { error } = await supabase.from("events").insert({
       name: suggestion.event_name,
+      venue_id: venueId,
       start_date: suggestion.event_date || new Date().toISOString().split("T")[0],
       time_text: suggestion.event_time || null,
       cost: suggestion.cost || null,
@@ -265,7 +280,6 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events, suggestion
       source_url: suggestion.event_url || null,
       status: "published",
       event_type: "event",
-      // venue_id is nullable for user-submitted events
     });
     if (!error) {
       await supabase.from("event_suggestions").delete().eq("id", suggestion.id);
@@ -389,19 +403,31 @@ export default function ScrapeDashboard({ venues, scrapeRuns, events, suggestion
                           by {s.suggested_by_email} · {new Date(s.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                         </p>
                       </div>
-                      <div className="flex gap-2 flex-shrink-0">
-                        <button
-                          onClick={() => approveEventSuggestion(s)}
-                          className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700"
+                      <div className="flex flex-col gap-2 flex-shrink-0">
+                        <select
+                          value={eventVenueSelections[s.id] || ""}
+                          onChange={(e) => setEventVenueSelections(prev => ({ ...prev, [s.id]: e.target.value }))}
+                          className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs text-gray-700 bg-white"
                         >
-                          ✓ Approve
-                        </button>
-                        <button
-                          onClick={() => dismissEventSuggestion(s.id)}
-                          className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100"
-                        >
-                          Dismiss
-                        </button>
+                          <option value="">Assign venue...</option>
+                          {venues.filter(v => v.is_active).sort((a, b) => a.name.localeCompare(b.name)).map(v => (
+                            <option key={v.id} value={v.id}>{v.name}</option>
+                          ))}
+                        </select>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => approveEventSuggestion(s)}
+                            className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700"
+                          >
+                            ✓ Approve
+                          </button>
+                          <button
+                            onClick={() => dismissEventSuggestion(s.id)}
+                            className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100"
+                          >
+                            Dismiss
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}

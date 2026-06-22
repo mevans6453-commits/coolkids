@@ -117,13 +117,16 @@ export type Profile = {
 };
 
 export const INTEREST_CATEGORIES = [
-  "farms",
-  "museums",
-  "outdoor",
-  "arts",
-  "seasonal",
-  "sports",
-  "free",
+  "hands-on-art",
+  "animals-nature",
+  "shows-performances",
+  "science-stem",
+  "festivals-fairs",
+  "seasonal-holidays",
+  "active-sports",
+  "markets-shopping",
+  "storytime-learning",
+  "family-fun",
 ] as const;
 
 export type InterestCategory = (typeof INTEREST_CATEGORIES)[number];

@@ -1,5 +1,5 @@
 import { MapPin, Calendar, Mail, Star } from "lucide-react";
-import { getCategoryBadgeClasses } from "@/lib/category-colors";
+import { getCategoryBadgeClasses, getCategoryShortLabel } from "@/lib/category-colors";
 import { supabase } from "@/lib/supabase";
 import type { DadJoke as DadJokeType } from "@/lib/types";
 import DadJoke from "@/components/dad-joke";
@@ -112,7 +112,7 @@ export default async function HomePage() {
                 className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md"
               >
                 <span className={`mb-2 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${getCategoryBadgeClasses(venue.category)}`}>
-                  {venue.category}
+                  {getCategoryShortLabel(venue.category)}
                 </span>
                 <h3 className="text-lg font-semibold text-gray-900">
                   {venue.name}
@@ -152,8 +152,8 @@ function FeatureCard({
 const FEATURED_VENUES = [
   { name: "Cagle's Family Farm", location: "Canton, GA", category: "animals-nature" },
   { name: "Tellus Science Museum", location: "Cartersville, GA", category: "science-stem" },
-  { name: "Gibbs Gardens", location: "Ball Ground, GA", category: "outdoor-adventure" },
+  { name: "Gibbs Gardens", location: "Ball Ground, GA", category: "seasonal-holidays" },
   { name: "North Georgia Zoo", location: "Cleveland, GA", category: "animals-nature" },
-  { name: "Booth Western Art Museum", location: "Cartersville, GA", category: "science-stem" },
-  { name: "Amicalola Falls State Park", location: "Dawsonville, GA", category: "outdoor-adventure" },
+  { name: "Booth Western Art Museum", location: "Cartersville, GA", category: "hands-on-art" },
+  { name: "Amicalola Falls State Park", location: "Dawsonville, GA", category: "active-sports" },
 ];
